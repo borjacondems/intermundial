@@ -21,8 +21,17 @@
   <script>
     (async () => {
       // Acceso solo por enlace: dashboard.html#c=NombreCliente&k=CLAVE  (el fragmento no viaja al servidor)
+      // Tras abrirlo una vez con el enlace, el acceso queda recordado en este navegador.
+      const SAVED = 'dashboardAccess';
+      const saved = {
+        get: () => { try { return JSON.parse(localStorage.getItem(SAVED)) || {}; } catch { return {}; } },
+        set: (v) => { try { localStorage.setItem(SAVED, JSON.stringify(v)); } catch {} },
+        clear: () => { try { localStorage.removeItem(SAVED); } catch {} },
+      };
       const hash = new URLSearchParams(location.hash.slice(1));
-      const client = hash.get('c') || '', key = hash.get('k') || '';
+      const fromLink = !!(hash.get('c') && hash.get('k'));
+      const access = fromLink ? { c: hash.get('c'), k: hash.get('k') } : saved.get();
+      const client = access.c || '', key = access.k || '';
       if (client) document.getElementById('title').textContent = `Roadmap de Producto y Diseño · ${client}`;
       const root = document.getElementById('root');
       if (!directMode && (!client || !key)) {
@@ -31,7 +40,9 @@
       }
       try {
         mount(root, await Loading.wrap('Cargando el dashboard…', () => getClientTasks(client, key)));
+        if (fromLink && !directMode) saved.set(access);
       } catch (e) {
+        if (e.status === 401) saved.clear();
         root.innerHTML = '<p id="err" class="msg err"></p>';
         showError(e.status === 401 ? 'Enlace no válido o caducado.' : e.message);
       }

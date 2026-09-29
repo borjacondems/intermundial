@@ -53,7 +53,7 @@ Enlace del dashboard:
 ```
 https://ORG.github.io/REPO/dashboard.html#c=Intermundial&k=clave-larga-aleatoria
 ```
-El fragmento (`#`) no se envía a ningún servidor. Para revocar el acceso, cambia esa clave en `CLIENT_KEYS`. Botón «Imprimir / PDF» para guardar un informe.
+Tras abrirlo una vez con el enlace, el navegador recuerda el acceso y `dashboard.html` funciona también sin el `#…`. Si la clave deja de valer, el acceso guardado se borra y hay que usar el enlace nuevo. El fragmento (`#`) no se envía a ningún servidor. Para revocar el acceso, cambia esa clave en `CLIENT_KEYS`. Botón «Imprimir / PDF» para guardar un informe.
 
 ## Modelo de datos
 Iniciativa · Cliente · Proyecto · Área (Producto/Diseño) · Estado (En curso/Hecho/Bloqueado) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
