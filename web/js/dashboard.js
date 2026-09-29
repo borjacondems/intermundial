@@ -3,7 +3,9 @@
 const PTS = { small: 1, medium: 2, large: 3 };
 const SIZE_LABEL = { large: 'L', medium: 'M', small: 'S' };
 const AREAS = ['Producto', 'Diseño'];
-const COLOR = { Producto: '#2f5bea', Diseño: '#d9822b' };
+// Colores de las áreas tomados de los tokens CSS: Producto = semantic-primary, Diseño = content-high.
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const areaColor = (a) => css(a === 'Producto' ? '--semantic-primary' : '--content-high');
 // Tono por tamaño dentro de cada área (L más oscuro).
 const SHADE = { large: 1, medium: 0.7, small: 0.42 };
 
@@ -39,7 +41,7 @@ function segBar(area, size, maxPts) {
     .filter((k) => size[k])
     .map((k) => {
       const w = ((size[k] * PTS[k]) / maxPts) * 100;
-      return `<span style="width:${w}%;background:${COLOR[area]};opacity:${SHADE[k]}" title="${size[k]} ${k}">${size[k]}${SIZE_LABEL[k]}</span>`;
+      return `<span style="width:${w}%;background:${areaColor(area)};opacity:${SHADE[k]}" title="${size[k]} ${k}">${size[k]}${SIZE_LABEL[k]}</span>`;
     })
     .join('');
   return `<div class="seg">${segs}</div>`;
@@ -49,7 +51,7 @@ function projectCard(name, tasks, maxPts) {
   const s = summarize(tasks.filter((t) => t.proyecto === name));
   const line = (a) => {
     const x = s.area[a];
-    return `<div class="area-row"><div class="area-name" style="color:${COLOR[a]}">${a}</div>
+    return `<div class="area-row"><div class="area-name" style="color:${areaColor(a)}">${a}</div>
       ${segBar(a, x.size, maxPts)}
       <div class="area-num"><b>${x.pts} pts</b><small>${x.n} tareas · ${sizeText(x.size)}</small></div></div>`;
   };
@@ -66,7 +68,7 @@ function stacked(id, labels, byArea, horizontal) {
     type: 'bar',
     data: {
       labels,
-      datasets: AREAS.map((a) => ({ label: a, data: byArea[a], backgroundColor: COLOR[a], borderRadius: 3 })),
+      datasets: AREAS.map((a) => ({ label: a, data: byArea[a], backgroundColor: areaColor(a), borderRadius: 3 })),
     },
     options: {
       maintainAspectRatio: false,
@@ -116,6 +118,11 @@ function showError(msg) {
 function mount(root, all, { internal = false } = {}) {
   root.innerHTML = TEMPLATE(internal);
   const $ = (id) => document.getElementById(id);
+  // Gráficos con la tipografía y los colores del Design System (low/xs, content-mid, stroke-low).
+  Chart.defaults.font.family = css('--font-text');
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = css('--content-mid');
+  Chart.defaults.borderColor = css('--stroke-low');
   $('direct').hidden = !directMode;
   $('direct').textContent = dataNote;
 
@@ -157,7 +164,7 @@ function mount(root, all, { internal = false } = {}) {
     stacked('c-tamano', sizes, Object.fromEntries(AREAS.map((a) => [a, sizes.map((z) => count((t) => t.tamano === z && t.area === a))])));
 
     $('rows').innerHTML = tasks.map((t) =>
-      `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${COLOR[t.area] || '#999'}"></span>${esc(t.area)}</td>` +
+      `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${AREAS.includes(t.area) ? areaColor(t.area) : css('--content-low')}"></span>${esc(t.area)}</td>` +
       `<td>${t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–'}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
       `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`
     ).join('');
