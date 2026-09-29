@@ -35,9 +35,7 @@
         </button>
       </div>
 
-      <section class="card" id="panel-table" role="tabpanel" aria-labelledby="tab-table">
-        <p class="msg err" id="table-msg" role="status" hidden></p>
-        <p class="note" id="source" hidden></p>
+      <div id="panel-table" role="tabpanel" aria-labelledby="tab-table">
         <div class="filterbar">
           <div class="chips" id="chips" role="group" aria-label="Filtrar por proyecto"></div>
           <div class="showing">
@@ -45,13 +43,17 @@
             <button type="button" class="linkbtn" id="clear" hidden>Quitar filtros</button>
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
-            <tbody id="rows"></tbody>
-          </table>
-        </div>
-      </section>
+        <section class="card">
+          <p class="msg err" id="table-msg" role="status" hidden></p>
+          <p class="note" id="source" hidden></p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
 
       <section class="card" id="panel-new" role="tabpanel" aria-labelledby="tab-new" hidden>
         <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
@@ -114,17 +116,15 @@
     }
 
     // ---- Tabla de iniciativas ----
-    // Indica de dónde salen los datos, para poder detectar una fuente equivocada.
+    // Aviso solo si la lectura directa de la hoja falla y se usa el respaldo (Apps Script): sirve para detectar
+    // una fuente equivocada. Con la lectura normal no se muestra nada.
     function describeSource(n) {
-      const via = { hoja: 'directamente de la hoja de Google', 'apps-script': 'a través del Apps Script' }[dataSource];
-      if (!via) return '';
-      let text = `Datos leídos ${via} · ${n} ${n === 1 ? 'fila' : 'filas'}.`;
-      if (dataSource === 'apps-script') {
-        text += location.protocol === 'file:'
-          ? ' Al abrir el archivo con doble clic, Google no permite la lectura directa; sírvelo con «npx serve web» o ábrelo desde la web publicada.'
-          : ' La lectura directa de la hoja no ha respondido (¿está compartida con «cualquiera con el enlace»?).';
-        if (n === 0) text += ' El Apps Script no devuelve filas: revisa que SHEET_ID y SHEET_NAME apunten a la pestaña «roadmap» de la hoja correcta.';
-      }
+      if (dataSource !== 'apps-script') return '';
+      let text = `Datos leídos a través del Apps Script · ${n} ${n === 1 ? 'fila' : 'filas'}.`;
+      text += location.protocol === 'file:'
+        ? ' Al abrir el archivo con doble clic, Google no permite la lectura directa; sírvelo con «npx serve web» o ábrelo desde la web publicada.'
+        : ' La lectura directa de la hoja no ha respondido (¿está compartida con «cualquiera con el enlace»?).';
+      if (n === 0) text += ' El Apps Script no devuelve filas: revisa que SHEET_ID y SHEET_NAME apunten a la pestaña «roadmap» de la hoja correcta.';
       return text;
     }
 
