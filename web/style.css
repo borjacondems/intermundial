@@ -142,7 +142,14 @@ h2.sec {
 .chart-box { position: relative; height: 260px; }
 .note { color: var(--content-mid); margin: 0 0 var(--size-4); }
 .hint { color: var(--content-mid); margin: 0 0 var(--size-4); }
-.row { display: flex; gap: var(--size-2); }
+.row { display: flex; gap: var(--size-2); align-items: flex-start; }
+.row .field { flex: 1; min-width: 0; }
+/* Mensaje de error bajo el campo: low/xs en semantic-danger */
+.field-error {
+  margin: var(--size-1) 0 0; color: var(--semantic-danger);
+  font: 400 var(--font-size-12)/var(--line-height-18) var(--font-text); letter-spacing: var(--letter-spacing-05);
+}
+.field-error[hidden] { display: none; }
 
 /* ---- Campo de texto (Text Input · Field Medium / Area High) ---- */
 form.task { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--size-4); }
@@ -163,7 +170,7 @@ textarea { height: auto; min-height: 88px; padding: 10px var(--size-4); resize: 
 input:focus, select:focus, textarea:focus {                       /* activo */
   border-color: var(--semantic-primary); box-shadow: 0 0 0 .5px var(--semantic-primary);
 }
-input:user-invalid, select:user-invalid, textarea:user-invalid {  /* error */
+input:user-invalid, select:user-invalid, textarea:user-invalid, input[aria-invalid="true"] {  /* error */
   border-color: var(--semantic-danger); box-shadow: 0 0 0 .5px var(--semantic-danger);
 }
 input:disabled, select:disabled, textarea:disabled { opacity: .25; cursor: not-allowed; } /* deshabilitado */

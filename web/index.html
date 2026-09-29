@@ -15,7 +15,13 @@
     <div class="card" id="gate" hidden>
       <h2>Clave de equipo</h2>
       <p class="hint">Pídesela a quien administre el proyecto. Se guarda solo en este navegador.</p>
-      <div class="row"><input id="key" type="password" autocomplete="off" placeholder="Clave"><button id="saveKey">Entrar</button></div>
+      <div class="row">
+        <div class="field">
+          <input id="key" type="password" autocomplete="off" placeholder="Clave" aria-describedby="key-error">
+          <p class="field-error" id="key-error" role="alert" hidden></p>
+        </div>
+        <button id="saveKey">Entrar</button>
+      </div>
     </div>
 
     <div class="card" id="app" hidden>
@@ -57,19 +63,42 @@
 
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+    // Mensaje de error bajo el campo de clave (estado de error del Text Input: borde rojo + texto de ayuda).
+    function keyError(msg) {
+      $('key-error').textContent = msg || '';
+      $('key-error').hidden = !msg;
+      if (msg) $('key').setAttribute('aria-invalid', 'true'); else $('key').removeAttribute('aria-invalid');
+    }
+    const BAD_KEY = 'Clave incorrecta. Revísala e inténtalo de nuevo.';
+
+    // Lee la hoja (rellena las sugerencias de proyecto y, de paso, valida la clave). Devuelve true si todo fue bien.
     // blocking=false: refresco silencioso (p. ej. tras guardar), sin overlay.
-    async function load(blocking = true) {
+    async function load(blocking = true, label = 'Cargando…') {
       try {
-        const tasks = blocking ? await Loading.wrap('Cargando…', getTasks) : await getTasks();
+        const tasks = blocking ? await Loading.wrap(label, getTasks) : await getTasks();
         const uniq = (k) => [...new Set(tasks.map((t) => t[k]).filter(Boolean))].sort();
         $('dl-proyecto').innerHTML = uniq('proyecto').map((v) => `<option value="${esc(v)}">`).join('');
+        return true;
       } catch (e) {
-        if (e.status === 401) { teamKey.set(''); show(false); }
+        if (e.status === 401) { teamKey.set(''); show(false); keyError(BAD_KEY); }
+        else if (!$('gate').hidden) keyError(e.message);
         else $('msg').textContent = e.message;
+        return false;
       }
     }
 
-    $('saveKey').onclick = () => { teamKey.set($('key').value.trim()); if (teamKey.get()) { show(true); load(); } };
+    // La clave se comprueba antes de mostrar el formulario.
+    async function enter() {
+      const k = $('key').value.trim();
+      if (!k) return keyError('Introduce la clave de equipo.');
+      keyError('');
+      teamKey.set(k);
+      if (await load(true, 'Comprobando clave…')) show(true);
+      else teamKey.set('');
+    }
+    $('saveKey').onclick = enter;
+    $('key').onkeydown = (e) => { if (e.key === 'Enter') enter(); };
+    $('key').oninput = () => keyError('');
 
     $('form').onsubmit = async (e) => {
       e.preventDefault();
@@ -85,7 +114,7 @@
         for (const id of ['iniciativa', 'nota']) $(id).value = '';
         load(false);
       } catch (err) {
-        if (err.status === 401) { teamKey.set(''); show(false); }
+        if (err.status === 401) { teamKey.set(''); show(false); keyError(BAD_KEY); }
         msg.className = 'msg err'; msg.textContent = err.message;
       } finally { Loading.hide(); $('submit').disabled = directMode; }
     };
@@ -95,9 +124,9 @@
       $('offline').hidden = false;
       $('submit').disabled = true;
     }
-    const ready = directMode || !!teamKey.get();
-    show(ready);
-    if (ready) load();
+    if (directMode) { show(true); load(); }
+    else if (teamKey.get()) load().then(show);   // clave guardada: se valida antes de mostrar el formulario
+    else show(false);
   </script>
 </body>
 </html>
