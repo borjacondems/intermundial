@@ -116,6 +116,14 @@ function showError(msg) {
   el.textContent = msg;
 }
 
+// Fila de la tabla de iniciativas (la usan el dashboard y la pestaña «Iniciativas» del formulario).
+function taskRow(t) {
+  const dot = AREAS.includes(t.area) ? areaColor(t.area) : css('--content-low');
+  return `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${dot}"></span>${esc(t.area)}</td>` +
+    `<td>${t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–'}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
+    `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`;
+}
+
 // Texto de estado bajo el título («Actualizando…», «Datos de las 12:34»).
 function setStatus(text) {
   const el = document.getElementById('status');
@@ -181,11 +189,7 @@ function mount(root, initial, { internal = false } = {}) {
     const sizes = Object.keys(PTS);
     stacked('c-tamano', sizes, Object.fromEntries(AREAS.map((a) => [a, sizes.map((z) => count((t) => t.tamano === z && t.area === a))])));
 
-    $('rows').innerHTML = tasks.map((t) =>
-      `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${AREAS.includes(t.area) ? areaColor(t.area) : css('--content-low')}"></span>${esc(t.area)}</td>` +
-      `<td>${t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–'}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
-      `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`
-    ).join('');
+    $('rows').innerHTML = tasks.map(taskRow).join('');
   }
   buildFilters();
   update();

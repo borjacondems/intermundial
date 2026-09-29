@@ -239,6 +239,19 @@ tr.dim td { color: var(--content-low); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 
+/* ---- Tabs ---- */
+.tabs { display: flex; gap: var(--size-6); margin-bottom: var(--size-4); border-bottom: 1px solid var(--stroke-low); }
+button.tab {
+  height: auto; padding: var(--size-2) 0 var(--size-3); border: 0; border-radius: 0; margin-bottom: -1px;
+  background: transparent; color: var(--content-mid);
+  border-bottom: var(--size-xs) solid transparent;
+}
+button.tab:hover:not(:disabled) { filter: none; color: var(--content-high); }
+button.tab[aria-selected="true"] { color: var(--content-high); border-bottom-color: var(--semantic-primary); }
+button.tab:focus-visible { outline: 2px solid var(--semantic-primary); outline-offset: 2px; border-radius: var(--size-1); }
+.tab .count { font-weight: 400; color: var(--content-mid); }
+td.empty { text-align: center; color: var(--content-mid); padding: var(--size-8) var(--size-3); }
+
 @media (max-width: 600px) {
   header.top { padding: var(--size-4); }
   header.top h1 { font: 400 var(--font-size-24)/var(--line-height-30) var(--font-text); letter-spacing: var(--letter-spacing-12); }

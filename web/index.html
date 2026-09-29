@@ -25,29 +25,49 @@
       </div>
     </div>
 
-    <div class="card" id="app" hidden>
-      <h2>Nueva iniciativa</h2>
-      <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
-      <form class="task" id="form">
-        <div class="full"><label for="iniciativa">Iniciativa *</label><input id="iniciativa" required maxlength="200"></div>
-        <div><label for="proyecto">Proyecto *</label><select id="proyecto" required></select></div>
-        <div><label for="area">Área</label><select id="area"></select></div>
-        <div><label for="estado">Estado</label><select id="estado"></select></div>
-        <div class="full"><label for="tamano">Tamaño (small = 1 pt · medium = 2 · large = 3)</label><select id="tamano"></select></div>
-        <div class="full"><label for="nota">Nota</label><textarea id="nota" rows="3" maxlength="1900"></textarea></div>
-        <div class="full"><button id="submit" type="submit">Guardar iniciativa</button>
-          <div class="msg" id="msg" role="status"></div></div>
-      </form>
+    <div id="app" hidden>
+      <div class="tabs" role="tablist" aria-label="Secciones">
+        <button type="button" class="tab" role="tab" id="tab-table" data-tab="table" aria-selected="true" aria-controls="panel-table">
+          Iniciativas <span class="count" id="count"></span>
+        </button>
+        <button type="button" class="tab" role="tab" id="tab-new" data-tab="new" aria-selected="false" aria-controls="panel-new" tabindex="-1">
+          Nueva iniciativa
+        </button>
+      </div>
+
+      <section class="card" id="panel-table" role="tabpanel" aria-labelledby="tab-table">
+        <p class="msg err" id="table-msg" role="status" hidden></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="panel-new" role="tabpanel" aria-labelledby="tab-new" hidden>
+        <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
+        <form class="task" id="form">
+          <div class="full"><label for="iniciativa">Iniciativa *</label><input id="iniciativa" required maxlength="200"></div>
+          <div><label for="proyecto">Proyecto *</label><select id="proyecto" required></select></div>
+          <div><label for="area">Área</label><select id="area"></select></div>
+          <div><label for="estado">Estado</label><select id="estado"></select></div>
+          <div class="full"><label for="tamano">Tamaño (small = 1 pt · medium = 2 · large = 3)</label><select id="tamano"></select></div>
+          <div class="full"><label for="nota">Nota</label><textarea id="nota" rows="3" maxlength="1900"></textarea></div>
+          <div class="full"><button id="submit" type="submit">Guardar iniciativa</button>
+            <div class="msg" id="msg" role="status"></div></div>
+        </form>
+      </section>
     </div>
   </main>
 
   <script src="js/config.js"></script>
   <script src="js/loading.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
   <script>
 
     const PROYECTOS = ['Tienda online', 'Safer', 'App/AC'];
-    const AREAS = ['Producto', 'Diseño'];
     const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
     const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
     const $ = (id) => document.getElementById(id);
@@ -59,9 +79,38 @@
     $('estado').insertAdjacentHTML('afterbegin', '<option value="">Sin estado</option>');
     $('estado').value = '';
 
+    // ---- Tabs (patrón WAI-ARIA: flechas, Inicio y Fin cambian de pestaña) ----
+    const tabs = [...document.querySelectorAll('[role=tab]')];
+    function selectTab(name, focus = false) {
+      for (const t of tabs) {
+        const on = t.dataset.tab === name;
+        t.setAttribute('aria-selected', on);
+        t.tabIndex = on ? 0 : -1;
+        $('panel-' + t.dataset.tab).hidden = !on;
+        if (on && focus) t.focus();
+      }
+    }
+    tabs.forEach((t, i) => {
+      t.onclick = () => selectTab(t.dataset.tab);
+      t.onkeydown = (e) => {
+        const next = { ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i - 1 + tabs.length) % tabs.length, Home: 0, End: tabs.length - 1 }[e.key];
+        if (next === undefined) return;
+        e.preventDefault();
+        selectTab(tabs[next].dataset.tab, true);
+      };
+    });
+
     function show(loggedIn) {
       $('gate').hidden = loggedIn;
       $('app').hidden = !loggedIn;
+    }
+
+    // ---- Tabla de iniciativas ----
+    function renderTable(tasks) {
+      $('count').textContent = tasks.length ? `(${tasks.length})` : '';
+      $('rows').innerHTML = tasks.length
+        ? tasks.map(taskRow).join('')
+        : '<tr><td colspan="7" class="empty">Aún no hay iniciativas.</td></tr>';
     }
 
     // Mensaje de error bajo el campo de clave (estado de error del Text Input: borde rojo + texto de ayuda).
@@ -72,22 +121,24 @@
     }
     const BAD_KEY = 'Clave incorrecta. Revísala e inténtalo de nuevo.';
 
-    // Comprueba la clave leyendo la hoja (el formulario ya no necesita sus datos). Devuelve true si es válida.
-    // blocking=false: comprobación silenciosa en segundo plano, sin overlay.
+    // Lee la hoja: pinta la tabla y, de paso, comprueba la clave. Devuelve true si todo fue bien.
+    // blocking=false: carga silenciosa en segundo plano, sin overlay.
     async function load(blocking = true, label = 'Cargando…') {
       try {
-        await (blocking ? Loading.wrap(label, getTasks) : getTasks());
-        dataCache.set('session', true);
+        const tasks = await (blocking ? Loading.wrap(label, getTasks) : getTasks());
+        dataCache.set('tasks', tasks);
+        renderTable(tasks);
+        $('table-msg').hidden = true;
         return true;
       } catch (e) {
-        if (e.status === 401) { teamKey.set(''); dataCache.clear('session'); show(false); keyError(BAD_KEY); }
+        if (e.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }
         else if (!$('gate').hidden) keyError(e.message);
-        else $('msg').textContent = e.message;
+        else { $('table-msg').textContent = e.message; $('table-msg').hidden = false; }
         return false;
       }
     }
 
-    // La clave se comprueba antes de mostrar el formulario.
+    // La clave se comprueba antes de mostrar la página.
     async function enter() {
       const k = $('key').value.trim();
       if (!k) return keyError('Introduce la clave de equipo.');
@@ -112,8 +163,9 @@
         });
         msg.className = 'msg ok'; msg.textContent = 'Iniciativa guardada en la hoja.';
         for (const id of ['iniciativa', 'nota']) $(id).value = ''; // el proyecto se conserva para cargar varias seguidas
+        load(false); // refresca la tabla en segundo plano
       } catch (err) {
-        if (err.status === 401) { teamKey.set(''); dataCache.clear('session'); show(false); keyError(BAD_KEY); }
+        if (err.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }
         msg.className = 'msg err'; msg.textContent = err.message;
       } finally { Loading.hide(); $('submit').disabled = directMode; }
     };
@@ -125,9 +177,10 @@
     }
     if (directMode) { show(true); load(); }
     else if (teamKey.get()) {
-      // Clave ya comprobada antes: el formulario sale al instante y la clave se valida en segundo plano
-      // (si ya no vale, vuelve a la pantalla de clave con el error).
-      if (dataCache.get('session')) { show(true); load(false); }
+      // Con datos guardados de una visita anterior, la tabla sale al instante y se actualiza (y la clave se
+      // valida) en segundo plano; si la clave ya no vale, vuelve a la pantalla de clave con el error.
+      const cached = dataCache.get('tasks');
+      if (cached) { renderTable(cached.data); show(true); load(false); }
       else load().then(show);
     } else show(false);
   </script>
