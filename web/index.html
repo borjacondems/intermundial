@@ -136,7 +136,7 @@
       b.type = 'button';
       b.className = 'chip';
       b.dataset.proyecto = name;
-      b.innerHTML = `<span>${esc(name)}</span> <span class="n"></span>`;
+      b.textContent = name;
       b.onclick = () => { selected.has(name) ? selected.delete(name) : selected.add(name); paint(); };
       $('chips').appendChild(b);
       return b;
@@ -156,7 +156,6 @@
       $('clear').hidden = !selected.size;
       for (const b of chips) {
         b.setAttribute('aria-pressed', selected.has(b.dataset.proyecto));
-        b.querySelector('.n').textContent = allTasks.filter((t) => t.proyecto === b.dataset.proyecto).length;
       }
     }
 

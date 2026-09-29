@@ -263,7 +263,6 @@ button.chip {
 button.chip:hover:not(:disabled) { filter: none; border-color: var(--content-low); }
 button.chip[aria-pressed="true"] { background: var(--surface-blue2); border-color: var(--semantic-primary); }
 button.chip:focus-visible, button.linkbtn:focus-visible { outline: 2px solid var(--semantic-primary); outline-offset: 2px; }
-.chip .n { color: var(--content-mid); margin-left: var(--size-1); }
 .showing { display: flex; align-items: center; gap: var(--size-3); color: var(--content-mid); }
 button.linkbtn {
   height: auto; padding: 0; border: 0; border-radius: var(--size-1); background: transparent;
