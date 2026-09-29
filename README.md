@@ -1,8 +1,8 @@
 # Gestor de roadmap → Google Sheets → Dashboard
 
 ```
-Equipo ──► web (GitHub Pages) ──► Apps Script (web app) ──► Google Sheets (pestaña "roadmap")
-Cliente ─► cliente.html#c=..&k=.. ─┘  (solo lectura, filtrado por cliente)
+Usuario A (añade iniciativas) ─► index.html  ─────────────► Apps Script (web app) ─► Google Sheets (pestaña "roadmap")
+Usuario B (consulta) ──────────► dashboard.html#c=..&k=.. ─┘  (solo lectura)
 ```
 
 Las claves viven solo en el Apps Script. La web es estática. La hoja se puede editar a mano y el dashboard lo refleja.
@@ -41,9 +41,17 @@ Si cambias `Code.gs` más adelante: Implementar → Gestionar implementaciones �
 2. Sube el repo a GitHub, Settings → Pages → Source: **GitHub Actions**. Cada push a `main` que toque `web/` se despliega.
 3. Equipo: `https://ORG.github.io/REPO/` (introducen la clave de equipo una vez).
 
-## 4. Enlace para el cliente
+## 4. Acceso de cada usuario
+Son dos páginas independientes, cada una con su propia credencial y sin enlaces entre ellas:
+
+| Usuario | Página | Credencial |
+|---|---|---|
+| Añade iniciativas | `index.html` | `TEAM_KEY` (la teclea una vez; queda guardada en su navegador) |
+| Consulta el dashboard | `dashboard.html` | clave de `CLIENT_KEYS`, dentro del enlace |
+
+Enlace del dashboard:
 ```
-https://ORG.github.io/REPO/cliente.html#c=Intermundial&k=clave-larga-aleatoria
+https://ORG.github.io/REPO/dashboard.html#c=Intermundial&k=clave-larga-aleatoria
 ```
 El fragmento (`#`) no se envía a ningún servidor. Para revocar el acceso, cambia esa clave en `CLIENT_KEYS`. Botón «Imprimir / PDF» para guardar un informe.
 

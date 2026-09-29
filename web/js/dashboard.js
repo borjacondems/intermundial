@@ -1,4 +1,4 @@
-// Dashboard del roadmap, compartido por la vista interna y la de cliente.
+// Dashboard del roadmap (solo lectura).
 // Esfuerzo: small = 1 pt, medium = 2, large = 3. TBD e "Incluido" no computan.
 const PTS = { small: 1, medium: 2, large: 3 };
 const SIZE_LABEL = { large: 'L', medium: 'M', small: 'S' };

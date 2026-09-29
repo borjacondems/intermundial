@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
   <title>Dashboard roadmap</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
-  <header class="top">
-    <h1>Roadmap de Producto y Diseño</h1>
-    <nav><a href="index.html">Nueva iniciativa</a><a class="on" href="dashboard.html">Dashboard</a></nav>
-  </header>
+  <header class="top"><h1 id="title">Roadmap de Producto y Diseño</h1>
+    <button class="ghost noprint" style="margin-left:auto" onclick="print()">Imprimir / PDF</button></header>
   <main id="root"></main>
   <script src="js/config.js"></script>
   <script src="js/loading.js"></script>
@@ -20,14 +20,20 @@
   <script src="js/dashboard.js"></script>
   <script>
     (async () => {
+      // Acceso solo por enlace: dashboard.html#c=NombreCliente&k=CLAVE  (el fragmento no viaja al servidor)
+      const hash = new URLSearchParams(location.hash.slice(1));
+      const client = hash.get('c') || '', key = hash.get('k') || '';
+      if (client) document.getElementById('title').textContent = `Roadmap de Producto y Diseño · ${client}`;
       const root = document.getElementById('root');
-      if (!directMode && !teamKey.get()) return location.replace('index.html');
-      try {
-        mount(root, await Loading.wrap('Cargando el dashboard…', getTasks), { internal: true });
-      } catch (e) {
-        if (e.status === 401) { teamKey.set(''); return location.replace('index.html'); }
+      if (!directMode && (!client || !key)) {
         root.innerHTML = '<p id="err" class="msg err"></p>';
-        showError(e.message);
+        return showError('Esta página solo se abre con el enlace de acceso que te facilitó el administrador.');
+      }
+      try {
+        mount(root, await Loading.wrap('Cargando el dashboard…', () => getClientTasks(client, key)));
+      } catch (e) {
+        root.innerHTML = '<p id="err" class="msg err"></p>';
+        showError(e.status === 401 ? 'Enlace no válido o caducado.' : e.message);
       }
     })();
   </script>
