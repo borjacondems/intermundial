@@ -65,7 +65,7 @@ th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--lin
 th { color: var(--muted); font-weight: 500; font-size: 13px; }
 td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); }
-.tag.Pasada { color: var(--ok); } .tag.Ongoing { color: var(--accent); } .tag.Next { color: var(--warn); }
+.tag.hecho { color: var(--ok); } .tag.en-curso { color: var(--accent); } .tag.bloqueado { color: var(--bad); }
 .chart-box { position: relative; height: 260px; }
 .table-wrap { overflow-x: auto; }
 h2.sec { margin: 24px 0 12px; }

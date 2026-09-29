@@ -18,7 +18,7 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
 | Proyecto | sí | texto (Tienda online, Safer, App/AC…) |
 | Área | sí | `Producto` o `Diseño` |
 | Tamaño | sí | `small`, `medium`, `large`, `TBD`, `Incluido` |
-| Estado | no | `Ongoing`, `Next`, `Pasada`. Si toda la columna está vacía, el dashboard oculta el filtro y el gráfico de estado |
+| Estado | no | `En curso`, `Hecho`, `Bloqueado`. Si toda la columna está vacía, el dashboard oculta el filtro y el gráfico de estado |
 | Cliente | no | Si no existe, todas las filas se consideran del único cliente |
 | Nota, Creada | no | texto |
 
@@ -48,7 +48,7 @@ https://ORG.github.io/REPO/cliente.html#c=Intermundial&k=clave-larga-aleatoria
 El fragmento (`#`) no se envía a ningún servidor. Para revocar el acceso, cambia esa clave en `CLIENT_KEYS`. Botón «Imprimir / PDF» para guardar un informe.
 
 ## Modelo de datos
-Iniciativa · Cliente · Proyecto · Área (Producto/Diseño) · Estado (Ongoing/Next/Pasada) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
+Iniciativa · Cliente · Proyecto · Área (Producto/Diseño) · Estado (En curso/Hecho/Bloqueado) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
 Esfuerzo: small = 1 pt, medium = 2, large = 3. `TBD` e `Incluido` («Todo lo pasado de Producto») no computan.
 Con los datos actuales de la hoja: 36 tareas y 63 pts (el PDF daba 35 y 61: en la hoja «Reembolso automático» es `medium` en lugar de TBD).
 

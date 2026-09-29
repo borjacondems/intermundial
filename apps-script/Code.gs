@@ -11,7 +11,7 @@
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Iniciativa', 'Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
-const ESTADOS = ['Ongoing', 'Next', 'Pasada'];
+const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
 const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
 
 // Todas las peticiones son POST con cuerpo JSON en text/plain (evita el preflight CORS).

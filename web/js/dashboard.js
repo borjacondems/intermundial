@@ -10,6 +10,8 @@ const SHADE = { large: 1, medium: 0.7, small: 0.42 };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pts = (t) => PTS[t.tamano] || 0;
 const counted = (t) => pts(t) > 0;
+// Clase CSS a partir del estado: «En curso» -> en-curso.
+const slug = (s) => String(s).toLowerCase().replace(/[^a-záéíóúñ0-9]+/g, '-');
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 function summarize(tasks) {
@@ -156,7 +158,7 @@ function mount(root, all, { internal = false } = {}) {
 
     $('rows').innerHTML = tasks.map((t) =>
       `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${COLOR[t.area] || '#999'}"></span>${esc(t.area)}</td>` +
-      `<td>${t.estado ? `<span class="tag ${esc(t.estado)}">${esc(t.estado)}</span>` : '–'}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
+      `<td>${t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–'}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
       `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`
     ).join('');
   }

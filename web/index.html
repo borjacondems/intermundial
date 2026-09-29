@@ -41,7 +41,7 @@
   <script>
 
     const AREAS = ['Producto', 'Diseño'];
-    const ESTADOS = ['Ongoing', 'Next', 'Pasada'];
+    const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
     const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
     const $ = (id) => document.getElementById(id);
     const fill = (id, vals) => { $(id).innerHTML = vals.map((v) => `<option>${v}</option>`).join(''); };
