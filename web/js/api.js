@@ -142,15 +142,22 @@ async function readSheet(client) {
 }
 
 const getTasks = () => (directMode ? readSheet() : call({ action: 'list', key: teamKey.get() }, { retry: true }));
+// (getTasks siempre lee por el Apps Script salvo en modo sin backend)
 
 // Lectura de la tabla del equipo: directa desde la hoja (rápida, ~0,5 s). Si la hoja no es pública o no
 // responde, se usa el Apps Script (más lento, pero funciona con la hoja privada).
+// dataSource indica de dónde salieron los últimos datos: 'hoja' (lectura directa) o 'apps-script' (respaldo).
+let dataSource = '';
 async function getSheetTasks() {
   try {
-    return await readSheet();
+    const tasks = await readSheet();
+    dataSource = 'hoja';
+    return tasks;
   } catch (e) {
     if (directMode) throw e;
-    return getTasks();
+    const tasks = await getTasks();
+    dataSource = 'apps-script';
+    return tasks;
   }
 }
 

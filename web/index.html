@@ -37,6 +37,7 @@
 
       <section class="card" id="panel-table" role="tabpanel" aria-labelledby="tab-table">
         <p class="msg err" id="table-msg" role="status" hidden></p>
+        <p class="note" id="source" hidden></p>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
@@ -106,11 +107,28 @@
     }
 
     // ---- Tabla de iniciativas ----
+    // Indica de dónde salen los datos, para poder detectar una fuente equivocada.
+    function describeSource(n) {
+      const via = { hoja: 'directamente de la hoja de Google', 'apps-script': 'a través del Apps Script' }[dataSource];
+      if (!via) return '';
+      let text = `Datos leídos ${via} · ${n} ${n === 1 ? 'fila' : 'filas'}.`;
+      if (dataSource === 'apps-script') {
+        text += location.protocol === 'file:'
+          ? ' Al abrir el archivo con doble clic, Google no permite la lectura directa; sírvelo con «npx serve web» o ábrelo desde la web publicada.'
+          : ' La lectura directa de la hoja no ha respondido (¿está compartida con «cualquiera con el enlace»?).';
+        if (n === 0) text += ' El Apps Script no devuelve filas: revisa que SHEET_ID y SHEET_NAME apunten a la pestaña «roadmap» de la hoja correcta.';
+      }
+      return text;
+    }
+
     function renderTable(tasks) {
       $('count').textContent = tasks.length ? `(${tasks.length})` : '';
       $('rows').innerHTML = tasks.length
         ? tasks.map(taskRow).join('')
         : '<tr><td colspan="7" class="empty">Aún no hay iniciativas.</td></tr>';
+      const note = describeSource(tasks.length);
+      $('source').textContent = note;
+      $('source').hidden = !note;
     }
 
     // Mensaje de error bajo el campo de clave (estado de error del Text Input: borde rojo + texto de ayuda).
@@ -139,7 +157,7 @@
         };
         const tasks = await (blocking ? Loading.wrap(label, run) : run());
         if (min && tasks.length < min) return true;
-        dataCache.set('tasks', tasks);
+        if (tasks.length) dataCache.set('tasks', tasks); else dataCache.clear('tasks'); // un resultado vacío no se guarda
         renderTable(tasks);
         $('table-msg').hidden = true;
         return true;
