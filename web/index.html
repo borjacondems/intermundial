@@ -23,22 +23,15 @@
       <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
       <form class="task" id="form">
         <div class="full"><label for="iniciativa">Iniciativa *</label><input id="iniciativa" required maxlength="200"></div>
-        <div><label for="cliente">Cliente</label><input id="cliente" list="dl-cliente" maxlength="100"></div>
         <div><label for="proyecto">Proyecto *</label><input id="proyecto" list="dl-proyecto" required maxlength="100"></div>
         <div><label for="area">Área</label><select id="area"></select></div>
         <div><label for="estado">Estado</label><select id="estado"></select></div>
         <div class="full"><label for="tamano">Tamaño (small = 1 pt · medium = 2 · large = 3)</label><select id="tamano"></select></div>
         <div class="full"><label for="nota">Nota</label><textarea id="nota" rows="3" maxlength="1900"></textarea></div>
         <div class="full"><button id="submit" type="submit">Guardar iniciativa</button>
-          <button type="button" class="ghost" id="logout" style="margin-left:8px">Cambiar clave</button>
           <div class="msg" id="msg" role="status"></div></div>
       </form>
-      <datalist id="dl-cliente"></datalist><datalist id="dl-proyecto"></datalist>
-    </div>
-
-    <div class="card" id="recent" style="margin-top:16px" hidden>
-      <h2>Últimas iniciativas</h2>
-      <div class="table-wrap"><table><thead><tr><th>Proyecto</th><th>Área</th><th>Iniciativa</th><th>Tamaño</th><th>Estado</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <datalist id="dl-proyecto"></datalist>
     </div>
   </main>
 
@@ -59,7 +52,6 @@
     function show(loggedIn) {
       $('gate').hidden = loggedIn;
       $('app').hidden = !loggedIn;
-      $('recent').hidden = !loggedIn;
     }
 
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -68,11 +60,7 @@
       try {
         const tasks = await getTasks();
         const uniq = (k) => [...new Set(tasks.map((t) => t[k]).filter(Boolean))].sort();
-        for (const k of ['cliente', 'proyecto'])
-          $('dl-' + k).innerHTML = uniq(k).map((v) => `<option value="${esc(v)}">`).join('');
-        $('rows').innerHTML = tasks.slice(-10).reverse().map((t) =>
-          `<tr><td>${esc(t.proyecto)}</td><td>${esc(t.area)}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td><td>${t.estado ? `<span class="tag ${esc(t.estado)}">${esc(t.estado)}</span>` : '–'}</td></tr>`
-        ).join('');
+        $('dl-proyecto').innerHTML = uniq('proyecto').map((v) => `<option value="${esc(v)}">`).join('');
       } catch (e) {
         if (e.status === 401) { teamKey.set(''); show(false); }
         else $('msg').textContent = e.message;
@@ -80,7 +68,6 @@
     }
 
     $('saveKey').onclick = () => { teamKey.set($('key').value.trim()); if (teamKey.get()) { show(true); load(); } };
-    $('logout').onclick = () => { teamKey.set(''); show(false); };
 
     $('form').onsubmit = async (e) => {
       e.preventDefault();
@@ -88,7 +75,7 @@
       $('submit').disabled = true;
       try {
         await createTask({
-          iniciativa: $('iniciativa').value, cliente: $('cliente').value, proyecto: $('proyecto').value,
+          iniciativa: $('iniciativa').value, proyecto: $('proyecto').value,
           area: $('area').value, estado: $('estado').value, tamano: $('tamano').value, nota: $('nota').value,
         });
         msg.className = 'msg ok'; msg.textContent = 'Iniciativa guardada en la hoja.';
@@ -100,11 +87,10 @@
       } finally { $('submit').disabled = directMode; }
     };
 
-    // Sin backend no hay clave que pedir: se muestra el formulario deshabilitado y las últimas filas de la hoja.
+    // Sin backend no hay clave que pedir: se muestra el formulario deshabilitado.
     if (directMode) {
       $('offline').hidden = false;
       $('submit').disabled = true;
-      $('logout').hidden = true;
     }
     const ready = directMode || !!teamKey.get();
     show(ready);
