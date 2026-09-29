@@ -201,6 +201,17 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: var(--size-2) var(--size-3); border-bottom: 1px solid var(--stroke-low); }
 th { color: var(--content-mid); }
 td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+/* Tabla de iniciativas: reparto de columnas fijo, para que no se muevan al filtrar (con table-layout automático
+   el ancho depende de las filas visibles). Por debajo de min-width, .table-wrap ofrece desplazamiento lateral. */
+table.tasks { table-layout: fixed; min-width: 760px; }
+table.tasks th:nth-child(1) { width: 14%; }  /* Proyecto */
+table.tasks th:nth-child(2) { width: 12%; }  /* Área */
+table.tasks th:nth-child(3) { width: 13%; }  /* Estado */
+table.tasks th:nth-child(4) { width: 27%; }  /* Iniciativa */
+table.tasks th:nth-child(5) { width: 9%; }   /* Tamaño */
+table.tasks th:nth-child(6) { width: 6%; }   /* Pts */
+table.tasks th:nth-child(7) { width: 19%; }  /* Nota */
+table.tasks td { overflow-wrap: anywhere; }
 tr.dim td { color: var(--content-low); }
 .tag {
   display: inline-block; padding: var(--size-xs) var(--size-2); border-radius: 99px;

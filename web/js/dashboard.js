@@ -105,7 +105,7 @@ const TEMPLATE = (internal) => `
     <div class="card"><h2>Tareas por tamaño</h2><div class="chart-box"><canvas id="c-tamano"></canvas></div></div>
   </div>
   <div class="card"><h2>Detalle</h2>
-    <div class="table-wrap"><table><thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="table-wrap"><table class="tasks"><thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead><tbody id="rows"></tbody></table></div>
   </div>`;
 
 const FILTERS = [['f-proyecto', 'proyecto'], ['f-area', 'area'], ['f-estado', 'estado'], ['f-tamano', 'tamano']];
