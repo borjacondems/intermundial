@@ -6,8 +6,11 @@
   <meta name="robots" content="noindex">
   <meta name="referrer" content="no-referrer">
   <title>Dashboard roadmap</title>
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
   <header class="top"><h1 id="title">Roadmap de Producto y Diseño</h1>
@@ -28,7 +31,6 @@
   </main>
   <script src="js/config.js"></script>
   <script src="js/loading.js"></script>
-  <script src="js/snapshot.js"></script>
   <script src="js/api.js"></script>
   <script src="js/dashboard.js"></script>
   <script>
@@ -52,18 +54,41 @@
       }
       const BAD_KEY = 'Clave incorrecta o enlace caducado. Si eres cliente, usa el enlace que te enviaron.';
 
+      // Chart.js se carga diferido para no retrasar la petición de datos: se espera a que esté listo antes de dibujar.
+      const domReady = new Promise((r) => (document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r) : r()));
+
       // Carga el dashboard con el acceso dado. Devuelve true si todo fue bien.
+      // Si ya hay una copia guardada, se dibuja al instante y se refresca en segundo plano (sin bloquear la página).
       async function open(access) {
-        try {
-          const tasks = await Loading.wrap('Cargando el dashboard…', () => getClientTasks(access.c || '', access.k || ''));
+        // La copia va ligada al cliente y a la clave con la que se leyó: un enlace distinto no la ve.
+        const cacheName = `dashboard:${access.c || '*'}:${access.k}`;
+        const cached = directMode ? null : dataCache.get(cacheName);
+        let view = null;
+        const render = async (tasks) => {
+          await domReady;
+          if (view) return view.setData(tasks);
           $('gate').hidden = true;
           root.innerHTML = '';
           if (access.c) $('title').textContent = `Roadmap de Producto y Diseño · ${access.c}`;
-          mount(root, tasks);
-          if (!directMode) saved.set(access);
+          view = mount(root, tasks);
+        };
+        try {
+          const fetchTasks = () => getClientTasks(access.c || '', access.k || '');
+          if (cached) {
+            await render(cached.data);
+            setStatus('Actualizando…');
+          }
+          const tasks = cached ? await fetchTasks() : await Loading.wrap('Cargando el dashboard…', fetchTasks);
+          if (!cached || JSON.stringify(tasks) !== JSON.stringify(cached.data)) await render(tasks);
+          if (!directMode) { dataCache.set(cacheName, tasks); saved.set(access); }
+          setStatus(directMode ? '' : `Datos actualizados a las ${hhmm(Date.now())}`);
           return true;
         } catch (e) {
-          if (e.status === 401) saved.clear();
+          if (e.status === 401) { saved.clear(); dataCache.clear(cacheName); }
+          else if (cached && view) {
+            setStatus(`No se pudo actualizar: ${e.message} Se muestran los datos guardados de las ${hhmm(cached.t)}.`);
+            return true;
+          }
           root.innerHTML = '';
           $('gate').hidden = false;
           keyError(e.status === 401 ? BAD_KEY : e.message);

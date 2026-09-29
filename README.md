@@ -64,9 +64,13 @@ Esfuerzo: small = 1 pt, medium = 2, large = 3. `TBD` e `Incluido` («Todo lo pas
 Con los datos actuales de la hoja: 36 tareas y 63 pts (el PDF daba 35 y 61: en la hoja «Reembolso automático» es `medium` en lugar de TBD).
 
 ## Ver el dashboard sin desplegar
-- **Con `npx serve web`** (o ya publicado en Pages): lee tu hoja en vivo (modo lectura directa; requiere que esté compartida con «cualquiera con el enlace»).
-- **Con doble clic en el HTML:** Chrome bloquea la lectura de Google desde `file://`, así que usa la copia `web/js/snapshot.js`. Se refresca con `./scripts/update-snapshot.sh`.
-- En ambos casos es **solo lectura**: guardar iniciativas y las claves de cliente solo funcionan tras desplegar el Apps Script y poner su URL en `web/js/config.js`.
+Mientras `web/js/config.js` tenga el marcador `TU_ID_DE_DESPLIEGUE`, las páginas leen la hoja directamente en modo **solo lectura** (requiere servirlas con `npx serve web`: Chrome no permite esa lectura desde `file://`). Guardar iniciativas y las claves solo funcionan con el Apps Script desplegado.
+
+## Rendimiento
+Apps Script tarda de 3 a 10 s por petición (con picos mayores), así que las páginas no esperan a que responda si ya han cargado datos antes:
+- **Dashboard:** guarda una copia en el navegador. Las visitas siguientes se pintan al instante y se refrescan en segundo plano (verás «Actualizando…» y luego la hora de los datos). Si el servidor falla, se sigue viendo la copia con un aviso.
+- **Formulario:** guarda la lista de proyectos; con la clave ya guardada, el formulario sale al instante y la clave se valida en segundo plano.
+- Las lecturas tienen un tiempo máximo de 20 s y se reintentan una vez. Guardar nunca se reintenta, para no duplicar una iniciativa.
 
 ## Notas
 - Apps Script tarda ~1-2 s por petición; para un equipo pequeño es suficiente.

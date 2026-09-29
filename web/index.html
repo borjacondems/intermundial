@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gestor de roadmap</title>
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -42,7 +44,6 @@
 
   <script src="js/config.js"></script>
   <script src="js/loading.js"></script>
-  <script src="js/snapshot.js"></script>
   <script src="js/api.js"></script>
   <script>
 
@@ -71,15 +72,20 @@
     const BAD_KEY = 'Clave incorrecta. Revísala e inténtalo de nuevo.';
 
     // Lee la hoja (rellena las sugerencias de proyecto y, de paso, valida la clave). Devuelve true si todo fue bien.
+    const fillProyectos = (list) => {
+      $('dl-proyecto').innerHTML = list.map((v) => `<option value="${esc(v)}">`).join('');
+    };
+
     // blocking=false: refresco silencioso (p. ej. tras guardar), sin overlay.
     async function load(blocking = true, label = 'Cargando…') {
       try {
         const tasks = blocking ? await Loading.wrap(label, getTasks) : await getTasks();
-        const uniq = (k) => [...new Set(tasks.map((t) => t[k]).filter(Boolean))].sort();
-        $('dl-proyecto').innerHTML = uniq('proyecto').map((v) => `<option value="${esc(v)}">`).join('');
+        const proyectos = [...new Set(tasks.map((t) => t.proyecto).filter(Boolean))].sort();
+        fillProyectos(proyectos);
+        dataCache.set('projects', proyectos);
         return true;
       } catch (e) {
-        if (e.status === 401) { teamKey.set(''); show(false); keyError(BAD_KEY); }
+        if (e.status === 401) { teamKey.set(''); dataCache.clear('projects'); show(false); keyError(BAD_KEY); }
         else if (!$('gate').hidden) keyError(e.message);
         else $('msg').textContent = e.message;
         return false;
@@ -124,8 +130,13 @@
       $('submit').disabled = true;
     }
     if (directMode) { show(true); load(); }
-    else if (teamKey.get()) load().then(show);   // clave guardada: se valida antes de mostrar el formulario
-    else show(false);
+    else if (teamKey.get()) {
+      // Clave guardada: si ya hay proyectos en caché, el formulario sale al instante y la clave se
+      // valida en segundo plano (si ya no vale, vuelve a la pantalla de clave con el error).
+      const cached = dataCache.get('projects');
+      if (cached) { fillProyectos(cached.data); show(true); load(false); }
+      else load().then(show);
+    } else show(false);
   </script>
 </body>
 </html>

@@ -21,21 +21,67 @@ const teamKey = {
   set: (v) => store.set('teamKey', v),
 };
 
+// Copia local de los últimos datos leídos, para mostrarlos al instante mientras Apps Script responde
+// (tarda de 3 a 10 s y a veces mucho más).
+const dataCache = {
+  get(name) {
+    try {
+      const v = JSON.parse(localStorage.getItem('cache:' + name));
+      return v && v.t && v.data ? v : null;
+    } catch {
+      return null;
+    }
+  },
+  set(name, data) {
+    try {
+      localStorage.setItem('cache:' + name, JSON.stringify({ t: Date.now(), data }));
+    } catch {}
+  },
+  clear(name) {
+    try {
+      localStorage.removeItem('cache:' + name);
+    } catch {}
+  },
+};
+
+const TIMEOUT_MS = 20000;
+
 // Apps Script no admite cabeceras personalizadas ni preflight CORS:
 // todo va por POST con cuerpo JSON como text/plain, y los errores llegan en el JSON.
-async function call(payload) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json().catch(() => ({ error: `Error ${res.status}`, status: res.status }));
-  if (data && data.error) {
-    const err = new Error(data.error);
-    err.status = data.status || res.status;
-    throw err;
+// Las lecturas (retry) se reintentan una vez si se agota el tiempo o falla la red; las escrituras nunca,
+// para no guardar la misma iniciativa dos veces.
+async function call(payload, { retry = false } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      });
+      const data = await res.json().catch(() => ({ error: `Error ${res.status}`, status: res.status }));
+      if (data && data.error) {
+        const err = new Error(data.error);
+        err.status = data.status || res.status;
+        throw err;
+      }
+      return data;
+    } catch (e) {
+      const transient = e.name === 'AbortError' || e instanceof TypeError;
+      if (transient && retry && attempt === 0) continue;
+      if (e.name === 'AbortError') {
+        throw new Error(retry
+          ? 'El servidor tarda demasiado en responder. Inténtalo de nuevo en unos segundos.'
+          : 'El servidor tarda demasiado en responder. Puede que la iniciativa sí se haya guardado: revisa la hoja antes de reintentar.');
+      }
+      if (e instanceof TypeError) throw new Error('No se pudo conectar con el servidor. Comprueba tu conexión.');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   }
-  return data;
 }
 
 // --- Modo lectura directa: CSV de la hoja -> mismas tareas que devuelve el Apps Script ---
@@ -88,7 +134,7 @@ async function readSheet(client) {
     .filter((t) => t.iniciativa && (!byClient || t.cliente === client));
 }
 
-const getTasks = () => (directMode ? readSheet() : call({ action: 'list', key: teamKey.get() }));
+const getTasks = () => (directMode ? readSheet() : call({ action: 'list', key: teamKey.get() }, { retry: true }));
 
 const createTask = (task) => {
   if (directMode) throw new Error('El backend aún no está desplegado: por ahora el dashboard es de solo lectura.');
@@ -96,4 +142,4 @@ const createTask = (task) => {
 };
 
 const getClientTasks = (client, key) =>
-  directMode ? readSheet(client) : call({ action: 'client', client, key });
+  directMode ? readSheet(client) : call({ action: 'client', client, key }, { retry: true });

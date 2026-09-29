@@ -82,6 +82,7 @@ function stacked(id, labels, byArea, horizontal) {
 const TEMPLATE = (internal) => `
   <p id="err" class="msg err" hidden></p>
   <p class="note" id="direct" hidden></p>
+  <p class="note" id="status" role="status" hidden></p>
   <p class="note">Esfuerzo: small = 1 pt · medium = 2 pts · large = 3 pts. No se cuentan las iniciativas TBD ni «Todo lo pasado de Producto».</p>
   <div class="filters">
     <div><label for="f-proyecto">Proyecto</label><select id="f-proyecto"></select></div>
@@ -115,7 +116,19 @@ function showError(msg) {
   el.textContent = msg;
 }
 
-function mount(root, all, { internal = false } = {}) {
+// Texto de estado bajo el título («Actualizando…», «Datos de las 12:34»).
+function setStatus(text) {
+  const el = document.getElementById('status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+const hhmm = (t) => new Date(t).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+// Devuelve { setData(tasks) } para refrescar los datos sin perder los filtros elegidos.
+function mount(root, initial, { internal = false } = {}) {
+  let all = initial;
   root.innerHTML = TEMPLATE(internal);
   const $ = (id) => document.getElementById(id);
   // Gráficos con la tipografía y los colores del Design System (low/xs, content-mid, stroke-low).
@@ -126,18 +139,23 @@ function mount(root, all, { internal = false } = {}) {
   $('direct').hidden = !directMode;
   $('direct').textContent = dataNote;
 
-  // Si la hoja no rellena Estado, se ocultan su filtro y su gráfico.
-  const hasEstado = all.some((t) => t.estado);
-  $('w-estado').hidden = !hasEstado;
-  $('card-estado').hidden = !hasEstado;
-
-  for (const [id, key] of FILTERS) {
-    const vals = [...new Set(all.map((t) => t[key]).filter(Boolean))];
-    $(id).innerHTML = '<option value="">Todos</option>' + vals.map((v) => `<option>${esc(v)}</option>`).join('');
-    $(id).onchange = update;
+  // Filtros a partir de los datos actuales, conservando la selección si sigue siendo válida.
+  function buildFilters() {
+    // Si la hoja no rellena Estado, se ocultan su filtro y su gráfico.
+    const hasEstado = all.some((t) => t.estado);
+    $('w-estado').hidden = !hasEstado;
+    $('card-estado').hidden = !hasEstado;
+    for (const [id, key] of FILTERS) {
+      const prev = $(id).value;
+      const vals = [...new Set(all.map((t) => t[key]).filter(Boolean))];
+      $(id).innerHTML = '<option value="">Todos</option>' + vals.map((v) => `<option>${esc(v)}</option>`).join('');
+      if (vals.includes(prev)) $(id).value = prev;
+      $(id).onchange = update;
+    }
   }
 
   function update() {
+    const hasEstado = all.some((t) => t.estado);
     const f = Object.fromEntries(FILTERS.map(([id, key]) => [key, $(id).value]));
     const tasks = all.filter((t) => Object.entries(f).every(([k, v]) => !v || t[k] === v));
     const s = summarize(tasks);
@@ -169,5 +187,13 @@ function mount(root, all, { internal = false } = {}) {
       `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`
     ).join('');
   }
+  buildFilters();
   update();
+  return {
+    setData(next) {
+      all = next;
+      buildFilters();
+      update();
+    },
+  };
 }
