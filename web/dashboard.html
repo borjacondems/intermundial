@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard roadmap</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1>Roadmap de Producto y Diseño</h1>
+    <nav><a href="index.html">Nueva iniciativa</a><a class="on" href="dashboard.html">Dashboard</a></nav>
+  </header>
+  <main id="root"></main>
+  <script type="module">
+    import { getTasks, teamKey } from './js/api.js';
+    import { mount, showError } from './js/dashboard.js';
+
+    if (!teamKey.get()) location.replace('index.html');
+    const root = document.getElementById('root');
+    try {
+      mount(root, await getTasks(), { internal: true });
+    } catch (e) {
+      if (e.status === 401) { teamKey.set(''); location.replace('index.html'); }
+      root.innerHTML = '<p id="err" class="msg err"></p>';
+      showError(e.message);
+    }
+  </script>
+</body>
+</html>

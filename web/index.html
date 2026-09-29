@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestor de roadmap</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Roadmap de Producto y Diseño</h1>
+    <nav><a class="on" href="index.html">Nueva iniciativa</a><a href="dashboard.html">Dashboard</a></nav>
+  </header>
+  <main>
+    <div class="card" id="gate" hidden>
+      <h2>Clave de equipo</h2>
+      <p style="color:var(--muted);margin-top:0">Pídesela a quien administre el proyecto. Se guarda solo en este navegador.</p>
+      <div style="display:flex;gap:8px"><input id="key" type="password" autocomplete="off" placeholder="Clave"><button id="saveKey" style="white-space:nowrap">Entrar</button></div>
+    </div>
+
+    <div class="card" id="app" hidden>
+      <h2>Nueva iniciativa</h2>
+      <form class="task" id="form">
+        <div class="full"><label for="iniciativa">Iniciativa *</label><input id="iniciativa" required maxlength="200"></div>
+        <div><label for="cliente">Cliente</label><input id="cliente" list="dl-cliente" maxlength="100"></div>
+        <div><label for="proyecto">Proyecto *</label><input id="proyecto" list="dl-proyecto" required maxlength="100"></div>
+        <div><label for="area">Área</label><select id="area"></select></div>
+        <div><label for="estado">Estado</label><select id="estado"></select></div>
+        <div class="full"><label for="tamano">Tamaño (small = 1 pt · medium = 2 · large = 3)</label><select id="tamano"></select></div>
+        <div class="full"><label for="nota">Nota</label><textarea id="nota" rows="3" maxlength="1900"></textarea></div>
+        <div class="full"><button id="submit" type="submit">Guardar iniciativa</button>
+          <button type="button" class="ghost" id="logout" style="margin-left:8px">Cambiar clave</button>
+          <div class="msg" id="msg" role="status"></div></div>
+      </form>
+      <datalist id="dl-cliente"></datalist><datalist id="dl-proyecto"></datalist>
+    </div>
+
+    <div class="card" id="recent" style="margin-top:16px" hidden>
+      <h2>Últimas iniciativas</h2>
+      <div class="table-wrap"><table><thead><tr><th>Proyecto</th><th>Área</th><th>Iniciativa</th><th>Tamaño</th><th>Estado</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { getTasks, createTask, teamKey } from './js/api.js';
+
+    const AREAS = ['Producto', 'Diseño'];
+    const ESTADOS = ['Ongoing', 'Next', 'Pasada'];
+    const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
+    const $ = (id) => document.getElementById(id);
+    const fill = (id, vals) => { $(id).innerHTML = vals.map((v) => `<option>${v}</option>`).join(''); };
+    fill('area', AREAS); fill('estado', ESTADOS); fill('tamano', TAMANOS);
+    $('estado').insertAdjacentHTML('afterbegin', '<option value="">Sin estado</option>');
+    $('estado').value = '';
+
+    function show(loggedIn) {
+      $('gate').hidden = loggedIn;
+      $('app').hidden = !loggedIn;
+      $('recent').hidden = !loggedIn;
+    }
+
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    async function load() {
+      try {
+        const tasks = await getTasks();
+        const uniq = (k) => [...new Set(tasks.map((t) => t[k]).filter(Boolean))].sort();
+        for (const k of ['cliente', 'proyecto'])
+          $('dl-' + k).innerHTML = uniq(k).map((v) => `<option value="${esc(v)}">`).join('');
+        $('rows').innerHTML = tasks.slice(-10).reverse().map((t) =>
+          `<tr><td>${esc(t.proyecto)}</td><td>${esc(t.area)}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td><td>${t.estado ? `<span class="tag ${esc(t.estado)}">${esc(t.estado)}</span>` : '–'}</td></tr>`
+        ).join('');
+      } catch (e) {
+        if (e.status === 401) { teamKey.set(''); show(false); }
+        else $('msg').textContent = e.message;
+      }
+    }
+
+    $('saveKey').onclick = () => { teamKey.set($('key').value.trim()); if (teamKey.get()) { show(true); load(); } };
+    $('logout').onclick = () => { teamKey.set(''); show(false); };
+
+    $('form').onsubmit = async (e) => {
+      e.preventDefault();
+      const msg = $('msg'); msg.className = 'msg'; msg.textContent = '';
+      $('submit').disabled = true;
+      try {
+        await createTask({
+          iniciativa: $('iniciativa').value, cliente: $('cliente').value, proyecto: $('proyecto').value,
+          area: $('area').value, estado: $('estado').value, tamano: $('tamano').value, nota: $('nota').value,
+        });
+        msg.className = 'msg ok'; msg.textContent = 'Iniciativa guardada en la hoja.';
+        for (const id of ['iniciativa', 'nota']) $(id).value = '';
+        load();
+      } catch (err) {
+        if (err.status === 401) { teamKey.set(''); show(false); }
+        msg.className = 'msg err'; msg.textContent = err.message;
+      } finally { $('submit').disabled = false; }
+    };
+
+    show(!!teamKey.get());
+    if (teamKey.get()) load();
+  </script>
+</body>
+</html>
