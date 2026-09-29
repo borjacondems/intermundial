@@ -38,6 +38,13 @@
       <section class="card" id="panel-table" role="tabpanel" aria-labelledby="tab-table">
         <p class="msg err" id="table-msg" role="status" hidden></p>
         <p class="note" id="source" hidden></p>
+        <div class="filterbar">
+          <div class="chips" id="chips" role="group" aria-label="Filtrar por proyecto"></div>
+          <div class="showing">
+            <span id="showing" role="status" aria-live="polite"></span>
+            <button type="button" class="linkbtn" id="clear" hidden>Quitar filtros</button>
+          </div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
@@ -121,14 +128,44 @@
       return text;
     }
 
+    // ---- Filtros por proyecto (etiquetas): sin ninguna seleccionada se ven todas; se pueden combinar ----
+    let allTasks = [];
+    const selected = new Set();
+    const chips = PROYECTOS.map((name) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.dataset.proyecto = name;
+      b.innerHTML = `<span>${esc(name)}</span> <span class="n"></span>`;
+      b.onclick = () => { selected.has(name) ? selected.delete(name) : selected.add(name); paint(); };
+      $('chips').appendChild(b);
+      return b;
+    });
+    $('clear').onclick = () => { selected.clear(); paint(); };
+
+    // Dibuja la tabla, el contador y las etiquetas a partir de todas las iniciativas y del filtro elegido.
+    function paint() {
+      const visible = selected.size ? allTasks.filter((t) => selected.has(t.proyecto)) : allTasks;
+      $('count').textContent = allTasks.length ? `(${allTasks.length})` : '';
+      $('rows').innerHTML = visible.length
+        ? visible.map(taskRow).join('')
+        : `<tr><td colspan="7" class="empty">${allTasks.length ? 'Ninguna iniciativa coincide con el filtro.' : 'Aún no hay iniciativas.'}</td></tr>`;
+      $('showing').textContent = allTasks.length
+        ? `Mostrando ${visible.length} de ${allTasks.length} ${allTasks.length === 1 ? 'iniciativa' : 'iniciativas'}`
+        : '';
+      $('clear').hidden = !selected.size;
+      for (const b of chips) {
+        b.setAttribute('aria-pressed', selected.has(b.dataset.proyecto));
+        b.querySelector('.n').textContent = allTasks.filter((t) => t.proyecto === b.dataset.proyecto).length;
+      }
+    }
+
     function renderTable(tasks) {
-      $('count').textContent = tasks.length ? `(${tasks.length})` : '';
-      $('rows').innerHTML = tasks.length
-        ? tasks.map(taskRow).join('')
-        : '<tr><td colspan="7" class="empty">Aún no hay iniciativas.</td></tr>';
+      allTasks = tasks;
       const note = describeSource(tasks.length);
       $('source').textContent = note;
       $('source').hidden = !note;
+      paint();
     }
 
     // Mensaje de error bajo el campo de clave (estado de error del Text Input: borde rojo + texto de ayuda).

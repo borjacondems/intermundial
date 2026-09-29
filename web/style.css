@@ -252,6 +252,26 @@ button.tab:focus-visible { outline: 2px solid var(--semantic-primary); outline-o
 .tab .count { font-weight: 400; color: var(--content-mid); }
 td.empty { text-align: center; color: var(--content-mid); padding: var(--size-8) var(--size-3); }
 
+/* ---- Etiquetas de filtro y contador de la tabla ---- */
+.filterbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--size-3) var(--size-4); margin-bottom: var(--size-4); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--size-2); }
+button.chip {
+  height: auto; padding: var(--size-1) var(--size-3); border-radius: 99px;
+  background: var(--surface-default); color: var(--content-high); border: 1px solid var(--stroke-low);
+  font: 400 var(--font-size-14)/var(--line-height-20) var(--font-text); letter-spacing: var(--letter-spacing-05);
+}
+button.chip:hover:not(:disabled) { filter: none; border-color: var(--content-low); }
+button.chip[aria-pressed="true"] { background: var(--surface-blue2); border-color: var(--semantic-primary); }
+button.chip:focus-visible, button.linkbtn:focus-visible { outline: 2px solid var(--semantic-primary); outline-offset: 2px; }
+.chip .n { color: var(--content-mid); margin-left: var(--size-1); }
+.showing { display: flex; align-items: center; gap: var(--size-3); color: var(--content-mid); }
+button.linkbtn {
+  height: auto; padding: 0; border: 0; border-radius: var(--size-1); background: transparent;
+  color: var(--semantic-primary); font: 500 var(--font-size-14)/var(--line-height-20) var(--font-text); letter-spacing: var(--letter-spacing-04);
+}
+button.linkbtn:hover:not(:disabled) { filter: none; text-decoration: underline; }
+button.linkbtn[hidden] { display: none; }
+
 @media (max-width: 600px) {
   header.top { padding: var(--size-4); }
   header.top h1 { font: 400 var(--font-size-24)/var(--line-height-30) var(--font-text); letter-spacing: var(--letter-spacing-12); }
