@@ -20,6 +20,7 @@
 
     <div class="card" id="app" hidden>
       <h2>Nueva iniciativa</h2>
+      <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
       <form class="task" id="form">
         <div class="full"><label for="iniciativa">Iniciativa *</label><input id="iniciativa" required maxlength="200"></div>
         <div><label for="cliente">Cliente</label><input id="cliente" list="dl-cliente" maxlength="100"></div>
@@ -42,6 +43,7 @@
   </main>
 
   <script src="js/config.js"></script>
+  <script src="js/snapshot.js"></script>
   <script src="js/api.js"></script>
   <script>
 
@@ -95,11 +97,18 @@
       } catch (err) {
         if (err.status === 401) { teamKey.set(''); show(false); }
         msg.className = 'msg err'; msg.textContent = err.message;
-      } finally { $('submit').disabled = false; }
+      } finally { $('submit').disabled = directMode; }
     };
 
-    show(!!teamKey.get());
-    if (teamKey.get()) load();
+    // Sin backend no hay clave que pedir: se muestra el formulario deshabilitado y las últimas filas de la hoja.
+    if (directMode) {
+      $('offline').hidden = false;
+      $('submit').disabled = true;
+      $('logout').hidden = true;
+    }
+    const ready = directMode || !!teamKey.get();
+    show(ready);
+    if (ready) load();
   </script>
 </body>
 </html>
