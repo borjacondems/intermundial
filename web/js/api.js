@@ -109,9 +109,16 @@ let dataNote = '';
 async function readSheet(client) {
   let text;
   try {
-    const res = await fetch(SHEET_CSV_URL);
-    if (!res.ok) throw new Error('http ' + res.status);
-    text = await res.text();
+    // Sin caché (ni del navegador ni intermedia) para ver siempre lo último que hay en la hoja; 10 s máximo.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      const res = await fetch(`${SHEET_CSV_URL}&_=${Date.now()}`, { cache: 'no-store', signal: ctrl.signal });
+      if (!res.ok) throw new Error('http ' + res.status);
+      text = await res.text();
+    } finally {
+      clearTimeout(timer);
+    }
     dataNote = 'Modo lectura directa desde la hoja de Google Sheets (backend sin desplegar).';
   } catch (e) {
     // Sin red hacia Google (p. ej. HTML abierto con doble clic): se usa la copia local.
@@ -135,6 +142,17 @@ async function readSheet(client) {
 }
 
 const getTasks = () => (directMode ? readSheet() : call({ action: 'list', key: teamKey.get() }, { retry: true }));
+
+// Lectura de la tabla del equipo: directa desde la hoja (rápida, ~0,5 s). Si la hoja no es pública o no
+// responde, se usa el Apps Script (más lento, pero funciona con la hoja privada).
+async function getSheetTasks() {
+  try {
+    return await readSheet();
+  } catch (e) {
+    if (directMode) throw e;
+    return getTasks();
+  }
+}
 
 const createTask = (task) => {
   if (directMode) throw new Error('El backend aún no está desplegado: por ahora el dashboard es de solo lectura.');

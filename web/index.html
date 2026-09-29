@@ -121,11 +121,24 @@
     }
     const BAD_KEY = 'Clave incorrecta. Revísala e inténtalo de nuevo.';
 
-    // Lee la hoja: pinta la tabla y, de paso, comprueba la clave. Devuelve true si todo fue bien.
-    // blocking=false: carga silenciosa en segundo plano, sin overlay.
-    async function load(blocking = true, label = 'Cargando…') {
+    // Lee la tabla directamente de la hoja de Google y la pinta. Devuelve true si todo fue bien.
+    //   blocking: con overlay (false = carga silenciosa en segundo plano)
+    //   verify:   lee a través del Apps Script para comprobar además la clave (más lento; solo al introducirla)
+    //   min:      nº de filas que debe tener como mínimo (tras guardar). Si la hoja aún no refleja la nueva fila
+    //             se mantiene la que ya se añadió en local, en vez de hacerla desaparecer.
+    async function load({ blocking = true, label = 'Cargando…', verify = false, min = 0 } = {}) {
+      const read = verify ? getTasks : getSheetTasks;
       try {
-        const tasks = await (blocking ? Loading.wrap(label, getTasks) : getTasks());
+        const run = async () => {
+          let tasks = await read();
+          if (min && tasks.length < min) {
+            await new Promise((r) => setTimeout(r, 1500));
+            tasks = await read();
+          }
+          return tasks;
+        };
+        const tasks = await (blocking ? Loading.wrap(label, run) : run());
+        if (min && tasks.length < min) return true;
         dataCache.set('tasks', tasks);
         renderTable(tasks);
         $('table-msg').hidden = true;
@@ -144,7 +157,7 @@
       if (!k) return keyError('Introduce la clave de equipo.');
       keyError('');
       teamKey.set(k);
-      if (await load(true, 'Comprobando clave…')) show(true);
+      if (await load({ label: 'Comprobando clave…', verify: true })) show(true);
       else teamKey.set('');
     }
     $('saveKey').onclick = enter;
@@ -157,13 +170,19 @@
       $('submit').disabled = true;
       Loading.show('Guardando iniciativa…');
       try {
-        await createTask({
+        const nota = $('nota').value;
+        const saved = await createTask({
           iniciativa: $('iniciativa').value, proyecto: $('proyecto').value,
-          area: $('area').value, estado: $('estado').value, tamano: $('tamano').value, nota: $('nota').value,
+          area: $('area').value, estado: $('estado').value, tamano: $('tamano').value, nota,
         });
         msg.className = 'msg ok'; msg.textContent = 'Iniciativa guardada en la hoja.';
+        // La fila aparece en la tabla al instante; después se relee la hoja en segundo plano.
+        const antes = (dataCache.get('tasks') || { data: [] }).data;
+        const tasks = [...antes, { id: saved.id, iniciativa: saved.iniciativa, cliente: '', proyecto: saved.proyecto, area: saved.area, estado: saved.estado, tamano: saved.tamano, nota }];
+        dataCache.set('tasks', tasks);
+        renderTable(tasks);
         for (const id of ['iniciativa', 'nota']) $(id).value = ''; // el proyecto se conserva para cargar varias seguidas
-        load(false); // refresca la tabla en segundo plano
+        load({ blocking: false, min: tasks.length });
       } catch (err) {
         if (err.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }
         msg.className = 'msg err'; msg.textContent = err.message;
@@ -180,7 +199,7 @@
       // Con datos guardados de una visita anterior, la tabla sale al instante y se actualiza (y la clave se
       // valida) en segundo plano; si la clave ya no vale, vuelve a la pantalla de clave con el error.
       const cached = dataCache.get('tasks');
-      if (cached) { renderTable(cached.data); show(true); load(false); }
+      if (cached) { renderTable(cached.data); show(true); load({ blocking: false }); }
       else load().then(show);
     } else show(false);
   </script>
