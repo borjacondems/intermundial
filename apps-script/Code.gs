@@ -3,13 +3,14 @@
 //   SHEET_ID     ID de la hoja (el tramo largo de la URL entre /d/ y /edit)
 //   SHEET_NAME   nombre de la pestaña (por defecto «roadmap»)
 //   TEAM_KEY     clave del equipo (leer y crear)
+//   ADMIN_KEY    clave de administrador: vale en las dos páginas (crear/leer y ver el dashboard de cualquier cliente)
 //   CLIENT_KEYS  JSON con una clave por cliente, ej. {"Intermundial":"clave-larga"}
 //
 // Las columnas se localizan por el nombre de la cabecera, en cualquier orden.
 // Obligatorias: Iniciativa, Proyecto, Área, Tamaño. Opcionales: Cliente, Estado, Nota, Creada.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'estados-2';
+const VERSION = 'admin-1';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Iniciativa', 'Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
@@ -44,12 +45,19 @@ function doGet() {
 
 // ---------- Auth ----------
 
+function isAdmin_(key) {
+  const admin = PropertiesService.getScriptProperties().getProperty('ADMIN_KEY');
+  return !!admin && safeEqual_(String(key || ''), admin);
+}
+
 function requireTeam_(key) {
+  if (isAdmin_(key)) return;
   const expected = PropertiesService.getScriptProperties().getProperty('TEAM_KEY');
   if (!expected || !safeEqual_(String(key || ''), expected)) throw fail_(401, 'Clave de equipo incorrecta');
 }
 
 function requireClient_(client, key) {
+  if (isAdmin_(key)) return; // el administrador puede ver cualquier cliente, o todos si no indica ninguno
   let map = {};
   try {
     map = JSON.parse(PropertiesService.getScriptProperties().getProperty('CLIENT_KEYS') || '{}');

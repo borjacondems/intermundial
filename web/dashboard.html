@@ -12,7 +12,20 @@
 <body>
   <header class="top"><h1 id="title">Roadmap de Producto y Diseño</h1>
     <button class="ghost noprint" style="margin-left:auto" onclick="print()">Imprimir / PDF</button></header>
-  <main id="root"></main>
+  <main>
+    <div class="card" id="gate" hidden>
+      <h2>Acceso al dashboard</h2>
+      <p class="hint">Introduce tu clave de acceso. Si eres cliente, abre el enlace que te facilitó el administrador.</p>
+      <div class="row">
+        <div class="field">
+          <input id="key" type="password" autocomplete="off" placeholder="Clave" aria-describedby="key-error">
+          <p class="field-error" id="key-error" role="alert" hidden></p>
+        </div>
+        <button id="saveKey">Entrar</button>
+      </div>
+    </div>
+    <div id="root"></div>
+  </main>
   <script src="js/config.js"></script>
   <script src="js/loading.js"></script>
   <script src="js/snapshot.js"></script>
@@ -20,32 +33,58 @@
   <script src="js/dashboard.js"></script>
   <script>
     (async () => {
-      // Acceso solo por enlace: dashboard.html#c=NombreCliente&k=CLAVE  (el fragmento no viaja al servidor)
-      // Tras abrirlo una vez con el enlace, el acceso queda recordado en este navegador.
+      const $ = (id) => document.getElementById(id);
+      const root = $('root');
+
+      // Acceso: enlace dashboard.html#c=Cliente&k=CLAVE (el fragmento no viaja al servidor),
+      // o la clave de administrador tecleada aquí. Queda recordado en este navegador.
       const SAVED = 'dashboardAccess';
       const saved = {
         get: () => { try { return JSON.parse(localStorage.getItem(SAVED)) || {}; } catch { return {}; } },
         set: (v) => { try { localStorage.setItem(SAVED, JSON.stringify(v)); } catch {} },
         clear: () => { try { localStorage.removeItem(SAVED); } catch {} },
       };
+
+      function keyError(msg) {
+        $('key-error').textContent = msg || '';
+        $('key-error').hidden = !msg;
+        if (msg) $('key').setAttribute('aria-invalid', 'true'); else $('key').removeAttribute('aria-invalid');
+      }
+      const BAD_KEY = 'Clave incorrecta o enlace caducado. Si eres cliente, usa el enlace que te enviaron.';
+
+      // Carga el dashboard con el acceso dado. Devuelve true si todo fue bien.
+      async function open(access) {
+        try {
+          const tasks = await Loading.wrap('Cargando el dashboard…', () => getClientTasks(access.c || '', access.k || ''));
+          $('gate').hidden = true;
+          root.innerHTML = '';
+          if (access.c) $('title').textContent = `Roadmap de Producto y Diseño · ${access.c}`;
+          mount(root, tasks);
+          if (!directMode) saved.set(access);
+          return true;
+        } catch (e) {
+          if (e.status === 401) saved.clear();
+          root.innerHTML = '';
+          $('gate').hidden = false;
+          keyError(e.status === 401 ? BAD_KEY : e.message);
+          return false;
+        }
+      }
+
+      async function enter() {
+        const k = $('key').value.trim();
+        if (!k) return keyError('Introduce la clave de acceso.');
+        keyError('');
+        await open({ c: '', k });
+      }
+      $('saveKey').onclick = enter;
+      $('key').onkeydown = (e) => { if (e.key === 'Enter') enter(); };
+      $('key').oninput = () => keyError('');
+
       const hash = new URLSearchParams(location.hash.slice(1));
-      const fromLink = !!(hash.get('c') && hash.get('k'));
-      const access = fromLink ? { c: hash.get('c'), k: hash.get('k') } : saved.get();
-      const client = access.c || '', key = access.k || '';
-      if (client) document.getElementById('title').textContent = `Roadmap de Producto y Diseño · ${client}`;
-      const root = document.getElementById('root');
-      if (!directMode && (!client || !key)) {
-        root.innerHTML = '<p id="err" class="msg err"></p>';
-        return showError('Esta página solo se abre con el enlace de acceso que te facilitó el administrador.');
-      }
-      try {
-        mount(root, await Loading.wrap('Cargando el dashboard…', () => getClientTasks(client, key)));
-        if (fromLink && !directMode) saved.set(access);
-      } catch (e) {
-        if (e.status === 401) saved.clear();
-        root.innerHTML = '<p id="err" class="msg err"></p>';
-        showError(e.status === 401 ? 'Enlace no válido o caducado.' : e.message);
-      }
+      const access = hash.get('k') ? { c: hash.get('c') || '', k: hash.get('k') } : saved.get();
+      if (directMode || access.k) open(access);
+      else $('gate').hidden = false;
     })();
   </script>
 </body>

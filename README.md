@@ -28,6 +28,7 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
    - `SHEET_ID` = `1v0q3X8VufxXBY0qT4J8uUrp4L5yujzYtKhAnClPTCPE`
    - `SHEET_NAME` = `roadmap`
    - `TEAM_KEY` = la clave que usará el equipo
+   - `ADMIN_KEY` = clave de administrador (vale en las dos páginas; ver más abajo)
    - `CLIENT_KEYS` = `{"Intermundial":"clave-larga-aleatoria"}`
 3. Implementar → **Nueva implementación** → tipo *Aplicación web*:
    - Ejecutar como: **Yo**
@@ -48,7 +49,9 @@ Son dos páginas independientes, cada una con su propia credencial y sin enlaces
 |---|---|---|
 | Añade iniciativas | `index.html` | `TEAM_KEY` (la teclea una vez; queda guardada en su navegador) |
 | Consulta el dashboard | `dashboard.html` | clave de `CLIENT_KEYS`, dentro del enlace |
+| Administrador | las dos | `ADMIN_KEY`: se teclea en el campo de clave de cualquiera de las dos páginas |
 
+`ADMIN_KEY` permite añadir iniciativas y ver el dashboard de cualquier cliente (o de todos a la vez). Las claves de equipo y de cliente no la sustituyen: la de equipo no abre el dashboard y la de cliente solo abre el suyo.
 Enlace del dashboard:
 ```
 https://ORG.github.io/REPO/dashboard.html#c=Intermundial&k=clave-larga-aleatoria
