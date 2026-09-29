@@ -10,7 +10,7 @@
 // Obligatorias: Iniciativa, Proyecto, Área, Tamaño. Opcionales: Cliente, Estado, Nota, Creada.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'admin-1';
+const VERSION = 'update-1';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Iniciativa', 'Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
@@ -28,6 +28,9 @@ function doPost(e) {
       case 'create':
         requireTeam_(req.key);
         return out_(createTask_(req.task || {}));
+      case 'update':
+        requireTeam_(req.key);
+        return out_(updateTask_(req.id, req.iniciativa, req.changes || {}));
       case 'client':
         requireClient_(req.client, req.key);
         return out_(listTasks_(req.client));
@@ -146,6 +149,34 @@ function createTask_(t) {
     const row = head.map((h) => (byHeader[h] === undefined ? '' : safe_(byHeader[h])));
     sheet.appendRow(row);
     return { id: String(sheet.getLastRow()), iniciativa, proyecto, area: t.area, estado, tamano: t.tamano };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Cambia el estado de una fila existente. `id` es el nº de fila de la hoja; `iniciativa` es el texto que la página
+// tenía para esa fila y sirve de comprobación: si alguien ha insertado, borrado u ordenado filas desde que se cargó
+// la tabla, la fila ya no coincide y se rechaza el cambio en lugar de escribir en la fila equivocada.
+function updateTask_(id, iniciativa, changes) {
+  if (!Object.prototype.hasOwnProperty.call(changes, 'estado')) throw fail_(400, 'No hay nada que actualizar');
+  const estado = str_(changes.estado, 50);
+  if (estado && ESTADOS.indexOf(estado) < 0) throw fail_(400, 'Estado no válido');
+  const row = Number(id);
+  if (!Number.isInteger(row) || row < 2) throw fail_(400, 'Fila no válida');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = sheet_();
+    const head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
+    const idx = columns_(head);
+    if (idx['Estado'] === undefined) throw fail_(500, 'Falta la columna «Estado» en la hoja');
+    const changed = 'La hoja ha cambiado desde que se cargó la tabla. Recarga la página.';
+    if (row > sheet.getLastRow()) throw fail_(409, changed);
+    const current = String(sheet.getRange(row, idx['Iniciativa'] + 1).getValue()).trim();
+    if (current !== String(iniciativa == null ? '' : iniciativa).trim()) throw fail_(409, changed);
+    sheet.getRange(row, idx['Estado'] + 1).setValue(safe_(estado));
+    return { id: String(row), estado };
   } finally {
     lock.releaseLock();
   }

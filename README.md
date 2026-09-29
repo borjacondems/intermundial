@@ -47,7 +47,7 @@ Son dos páginas independientes, cada una con su propia credencial y sin enlaces
 
 | Usuario | Página | Credencial |
 |---|---|---|
-| Añade iniciativas | `index.html` | `TEAM_KEY` (la teclea una vez; queda guardada en su navegador). Tiene dos pestañas: **Iniciativas** (tabla con las filas de la hoja, con etiquetas para filtrar por proyecto y un contador de las que se están viendo) y **Nueva iniciativa** (formulario) |
+| Añade iniciativas | `index.html` | `TEAM_KEY` (la teclea una vez; queda guardada en su navegador). En la tabla, el **estado** de cada iniciativa se cambia desde su selector y el cambio se guarda en la hoja (columna Estado; requiere el Apps Script actualizado a la versión `update-1`). Tiene dos pestañas: **Iniciativas** (tabla con las filas de la hoja, con etiquetas para filtrar por proyecto y un contador de las que se están viendo) y **Nueva iniciativa** (formulario) |
 | Consulta el dashboard | `dashboard.html` | clave de `CLIENT_KEYS`, dentro del enlace |
 | Administrador | las dos | `ADMIN_KEY`: se teclea en el campo de clave de cualquiera de las dos páginas |
 

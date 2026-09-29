@@ -117,10 +117,16 @@ function showError(msg) {
 }
 
 // Fila de la tabla de iniciativas (la usan el dashboard y la pestaña «Iniciativas» del formulario).
-function taskRow(t) {
+// Con { statusOptions } el estado es un selector editable (pestaña «Iniciativas» del equipo); sin él, una etiqueta.
+function taskRow(t, { statusOptions = null, disabled = false } = {}) {
   const dot = AREAS.includes(t.area) ? areaColor(t.area) : css('--content-low');
+  const estado = statusOptions
+    ? `<select class="status ${t.estado ? slug(t.estado) : 'sin-estado'}" data-id="${esc(t.id)}" aria-label="Estado de «${esc(t.iniciativa)}»"${disabled ? ' disabled' : ''}>` +
+      ['', ...statusOptions].map((o) => `<option value="${esc(o)}"${o === t.estado ? ' selected' : ''}>${o ? esc(o) : 'Sin estado'}</option>`).join('') +
+      '</select>'
+    : t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–';
   return `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${dot}"></span>${esc(t.area)}</td>` +
-    `<td>${t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–'}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
+    `<td>${estado}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
     `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`;
 }
 
@@ -189,7 +195,7 @@ function mount(root, initial, { internal = false } = {}) {
     const sizes = Object.keys(PTS);
     stacked('c-tamano', sizes, Object.fromEntries(AREAS.map((a) => [a, sizes.map((z) => count((t) => t.tamano === z && t.area === a))])));
 
-    $('rows').innerHTML = tasks.map(taskRow).join('');
+    $('rows').innerHTML = tasks.map((t) => taskRow(t)).join('');
   }
   buildFilters();
   update();

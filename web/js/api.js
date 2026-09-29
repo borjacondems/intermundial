@@ -166,5 +166,12 @@ const createTask = (task) => {
   return call({ action: 'create', key: teamKey.get(), task });
 };
 
+// Cambia campos de una fila existente (por ahora solo el estado). `iniciativa` sirve al servidor para comprobar
+// que la fila sigue siendo la misma. Nunca se reintenta: es una escritura.
+const updateTask = (id, iniciativa, changes) => {
+  if (directMode) throw new Error('El backend aún no está desplegado: por ahora la tabla es de solo lectura.');
+  return call({ action: 'update', key: teamKey.get(), id, iniciativa, changes });
+};
+
 const getClientTasks = (client, key) =>
   directMode ? readSheet(client) : call({ action: 'client', client, key }, { retry: true });

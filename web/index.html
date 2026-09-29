@@ -148,7 +148,7 @@
       const visible = selected.size ? allTasks.filter((t) => selected.has(t.proyecto)) : allTasks;
       $('count').textContent = allTasks.length ? `(${allTasks.length})` : '';
       $('rows').innerHTML = visible.length
-        ? visible.map(taskRow).join('')
+        ? visible.map((t) => taskRow(t, { statusOptions: ESTADOS, disabled: directMode })).join('')
         : `<tr><td colspan="7" class="empty">${allTasks.length ? 'Ninguna iniciativa coincide con el filtro.' : 'Aún no hay iniciativas.'}</td></tr>`;
       $('showing').textContent = allTasks.length
         ? `Mostrando ${visible.length} de ${allTasks.length} ${allTasks.length === 1 ? 'iniciativa' : 'iniciativas'}`
@@ -158,6 +158,47 @@
         b.setAttribute('aria-pressed', selected.has(b.dataset.proyecto));
       }
     }
+
+    // ---- Cambio de estado desde la tabla: se guarda en la hoja (Apps Script) ----
+    // Tras guardar, la lectura directa de la hoja puede tardar unos segundos en reflejar el cambio; mientras tanto se
+    // mantiene el valor recién guardado para que la tabla no "retroceda".
+    const pendientes = new Map(); // id -> { iniciativa, estado, hasta }
+    function aplicarPendientes(tasks) {
+      for (const [id, p] of pendientes) {
+        const t = tasks.find((x) => x.id === id && x.iniciativa === p.iniciativa);
+        if (!t || Date.now() > p.hasta || t.estado === p.estado) pendientes.delete(id);
+        else t.estado = p.estado;
+      }
+      return tasks;
+    }
+
+    $('rows').addEventListener('change', async (e) => {
+      const sel = e.target.closest('select.status');
+      if (!sel) return;
+      const task = allTasks.find((t) => t.id === sel.dataset.id);
+      if (!task) return;
+      const anterior = task.estado, nuevo = sel.value;
+      if (nuevo === anterior) return;
+      $('table-msg').hidden = true;
+      Loading.show('Guardando cambio…');
+      try {
+        await updateTask(task.id, task.iniciativa, { estado: nuevo });
+        task.estado = nuevo;
+        pendientes.set(task.id, { iniciativa: task.iniciativa, estado: nuevo, hasta: Date.now() + 60000 });
+        dataCache.set('tasks', allTasks);
+      } catch (err) {
+        sel.value = anterior; // el cambio no se guardó: el selector vuelve a como estaba
+        if (err.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }
+        else {
+          // Si la hoja cambió (409) se recarga la tabla; el aviso se muestra después, porque al recargar se borra.
+          if (err.status === 409) await load({ blocking: false });
+          $('table-msg').textContent = err.message; $('table-msg').hidden = false;
+        }
+      } finally {
+        Loading.hide();
+        paint();
+      }
+    });
 
     function renderTable(tasks) {
       allTasks = tasks;
@@ -193,6 +234,7 @@
         };
         const tasks = await (blocking ? Loading.wrap(label, run) : run());
         if (min && tasks.length < min) return true;
+        aplicarPendientes(tasks);
         if (tasks.length) dataCache.set('tasks', tasks); else dataCache.clear('tasks'); // un resultado vacío no se guarda
         renderTable(tasks);
         $('table-msg').hidden = true;
