@@ -13,21 +13,24 @@
   <header class="top"><h1 id="title">Roadmap de Producto y Diseño</h1>
     <button class="ghost noprint" style="margin-left:auto" onclick="print()">Imprimir / PDF</button></header>
   <main id="root"></main>
-  <script type="module">
-    import { getClientTasks } from './js/api.js';
-    import { mount, showError } from './js/dashboard.js';
-
-    // Enlace: cliente.html#c=NombreCliente&k=CLAVE  (el fragmento no viaja al servidor)
-    const hash = new URLSearchParams(location.hash.slice(1));
-    const client = hash.get('c') || '', key = hash.get('k') || '';
-    if (client) document.getElementById('title').textContent = `Roadmap de Producto y Diseño · ${client}`;
-    const root = document.getElementById('root');
-    try {
-      mount(root, await getClientTasks(client, key));
-    } catch (e) {
-      root.innerHTML = '<p id="err" class="msg err"></p>';
-      showError(e.status === 401 ? 'Enlace no válido o caducado.' : e.message);
-    }
+  <script src="js/config.js"></script>
+  <script src="js/snapshot.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script>
+    (async () => {
+      // Enlace: cliente.html#c=NombreCliente&k=CLAVE  (el fragmento no viaja al servidor)
+      const hash = new URLSearchParams(location.hash.slice(1));
+      const client = hash.get('c') || '', key = hash.get('k') || '';
+      if (client) document.getElementById('title').textContent = `Roadmap de Producto y Diseño · ${client}`;
+      const root = document.getElementById('root');
+      try {
+        mount(root, await getClientTasks(client, key));
+      } catch (e) {
+        root.innerHTML = '<p id="err" class="msg err"></p>';
+        showError(e.status === 401 ? 'Enlace no válido o caducado.' : e.message);
+      }
+    })();
   </script>
 </body>
 </html>

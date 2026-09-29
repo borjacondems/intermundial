@@ -52,10 +52,10 @@ Iniciativa · Cliente · Proyecto · Área (Producto/Diseño) · Estado (Ongoing
 Esfuerzo: small = 1 pt, medium = 2, large = 3. `TBD` e `Incluido` («Todo lo pasado de Producto») no computan.
 Con los datos actuales de la hoja: 36 tareas y 63 pts (el PDF daba 35 y 61: en la hoja «Reembolso automático» es `medium` en lugar de TBD).
 
-## Local
-```bash
-npx serve web    # los módulos ES no funcionan con file://
-```
+## Ver el dashboard sin desplegar
+- **Con `npx serve web`** (o ya publicado en Pages): lee tu hoja en vivo (modo lectura directa; requiere que esté compartida con «cualquiera con el enlace»).
+- **Con doble clic en el HTML:** Chrome bloquea la lectura de Google desde `file://`, así que usa la copia `web/js/snapshot.js`. Se refresca con `./scripts/update-snapshot.sh`.
+- En ambos casos es **solo lectura**: guardar iniciativas y las claves de cliente solo funcionan tras desplegar el Apps Script y poner su URL en `web/js/config.js`.
 
 ## Notas
 - Apps Script tarda ~1-2 s por petición; para un equipo pequeño es suficiente.

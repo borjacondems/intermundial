@@ -77,6 +77,7 @@ function stacked(id, labels, byArea, horizontal) {
 
 const TEMPLATE = (internal) => `
   <p id="err" class="msg err" hidden></p>
+  <p class="note" id="direct" hidden></p>
   <p class="note">Esfuerzo: small = 1 pt · medium = 2 pts · large = 3 pts. No se cuentan las iniciativas TBD ni «Todo lo pasado de Producto».</p>
   <div class="filters">
     <div><label for="f-proyecto">Proyecto</label><select id="f-proyecto"></select></div>
@@ -104,15 +105,17 @@ const TEMPLATE = (internal) => `
 
 const FILTERS = [['f-proyecto', 'proyecto'], ['f-area', 'area'], ['f-estado', 'estado'], ['f-tamano', 'tamano']];
 
-export function showError(msg) {
+function showError(msg) {
   const el = document.getElementById('err');
   el.hidden = false;
   el.textContent = msg;
 }
 
-export function mount(root, all, { internal = false } = {}) {
+function mount(root, all, { internal = false } = {}) {
   root.innerHTML = TEMPLATE(internal);
   const $ = (id) => document.getElementById(id);
+  $('direct').hidden = !directMode;
+  $('direct').textContent = dataNote;
 
   // Si la hoja no rellena Estado, se ocultan su filtro y su gráfico.
   const hasEstado = all.some((t) => t.estado);

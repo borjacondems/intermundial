@@ -13,19 +13,22 @@
     <nav><a href="index.html">Nueva iniciativa</a><a class="on" href="dashboard.html">Dashboard</a></nav>
   </header>
   <main id="root"></main>
-  <script type="module">
-    import { getTasks, teamKey } from './js/api.js';
-    import { mount, showError } from './js/dashboard.js';
-
-    if (!teamKey.get()) location.replace('index.html');
-    const root = document.getElementById('root');
-    try {
-      mount(root, await getTasks(), { internal: true });
-    } catch (e) {
-      if (e.status === 401) { teamKey.set(''); location.replace('index.html'); }
-      root.innerHTML = '<p id="err" class="msg err"></p>';
-      showError(e.message);
-    }
+  <script src="js/config.js"></script>
+  <script src="js/snapshot.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script>
+    (async () => {
+      const root = document.getElementById('root');
+      if (!directMode && !teamKey.get()) return location.replace('index.html');
+      try {
+        mount(root, await getTasks(), { internal: true });
+      } catch (e) {
+        if (e.status === 401) { teamKey.set(''); return location.replace('index.html'); }
+        root.innerHTML = '<p id="err" class="msg err"></p>';
+        showError(e.message);
+      }
+    })();
   </script>
 </body>
 </html>
