@@ -36,6 +36,7 @@
   </main>
 
   <script src="js/config.js"></script>
+  <script src="js/loading.js"></script>
   <script src="js/snapshot.js"></script>
   <script src="js/api.js"></script>
   <script>
@@ -56,9 +57,10 @@
 
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-    async function load() {
+    // blocking=false: refresco silencioso (p. ej. tras guardar), sin overlay.
+    async function load(blocking = true) {
       try {
-        const tasks = await getTasks();
+        const tasks = blocking ? await Loading.wrap('Cargando…', getTasks) : await getTasks();
         const uniq = (k) => [...new Set(tasks.map((t) => t[k]).filter(Boolean))].sort();
         $('dl-proyecto').innerHTML = uniq('proyecto').map((v) => `<option value="${esc(v)}">`).join('');
       } catch (e) {
@@ -73,6 +75,7 @@
       e.preventDefault();
       const msg = $('msg'); msg.className = 'msg'; msg.textContent = '';
       $('submit').disabled = true;
+      Loading.show('Guardando iniciativa…');
       try {
         await createTask({
           iniciativa: $('iniciativa').value, proyecto: $('proyecto').value,
@@ -80,11 +83,11 @@
         });
         msg.className = 'msg ok'; msg.textContent = 'Iniciativa guardada en la hoja.';
         for (const id of ['iniciativa', 'nota']) $(id).value = '';
-        load();
+        load(false);
       } catch (err) {
         if (err.status === 401) { teamKey.set(''); show(false); }
         msg.className = 'msg err'; msg.textContent = err.message;
-      } finally { $('submit').disabled = directMode; }
+      } finally { Loading.hide(); $('submit').disabled = directMode; }
     };
 
     // Sin backend no hay clave que pedir: se muestra el formulario deshabilitado.

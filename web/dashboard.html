@@ -14,6 +14,7 @@
   </header>
   <main id="root"></main>
   <script src="js/config.js"></script>
+  <script src="js/loading.js"></script>
   <script src="js/snapshot.js"></script>
   <script src="js/api.js"></script>
   <script src="js/dashboard.js"></script>
@@ -22,7 +23,7 @@
       const root = document.getElementById('root');
       if (!directMode && !teamKey.get()) return location.replace('index.html');
       try {
-        mount(root, await getTasks(), { internal: true });
+        mount(root, await Loading.wrap('Cargando el dashboard…', getTasks), { internal: true });
       } catch (e) {
         if (e.status === 401) { teamKey.set(''); return location.replace('index.html'); }
         root.innerHTML = '<p id="err" class="msg err"></p>';

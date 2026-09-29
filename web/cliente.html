@@ -14,6 +14,7 @@
     <button class="ghost noprint" style="margin-left:auto" onclick="print()">Imprimir / PDF</button></header>
   <main id="root"></main>
   <script src="js/config.js"></script>
+  <script src="js/loading.js"></script>
   <script src="js/snapshot.js"></script>
   <script src="js/api.js"></script>
   <script src="js/dashboard.js"></script>
@@ -25,7 +26,7 @@
       if (client) document.getElementById('title').textContent = `Roadmap de Producto y Diseño · ${client}`;
       const root = document.getElementById('root');
       try {
-        mount(root, await getClientTasks(client, key));
+        mount(root, await Loading.wrap('Cargando el dashboard…', () => getClientTasks(client, key)));
       } catch (e) {
         root.innerHTML = '<p id="err" class="msg err"></p>';
         showError(e.status === 401 ? 'Enlace no válido o caducado.' : e.message);
