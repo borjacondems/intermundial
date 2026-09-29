@@ -30,7 +30,7 @@
       <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
       <form class="task" id="form">
         <div class="full"><label for="iniciativa">Iniciativa *</label><input id="iniciativa" required maxlength="200"></div>
-        <div><label for="proyecto">Proyecto *</label><input id="proyecto" list="dl-proyecto" required maxlength="100"></div>
+        <div><label for="proyecto">Proyecto *</label><select id="proyecto" required></select></div>
         <div><label for="area">Área</label><select id="area"></select></div>
         <div><label for="estado">Estado</label><select id="estado"></select></div>
         <div class="full"><label for="tamano">Tamaño (small = 1 pt · medium = 2 · large = 3)</label><select id="tamano"></select></div>
@@ -38,7 +38,6 @@
         <div class="full"><button id="submit" type="submit">Guardar iniciativa</button>
           <div class="msg" id="msg" role="status"></div></div>
       </form>
-      <datalist id="dl-proyecto"></datalist>
     </div>
   </main>
 
@@ -47,11 +46,15 @@
   <script src="js/api.js"></script>
   <script>
 
+    const PROYECTOS = ['Tienda online', 'Safer', 'App/AC'];
     const AREAS = ['Producto', 'Diseño'];
     const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
     const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
     const $ = (id) => document.getElementById(id);
     const fill = (id, vals) => { $(id).innerHTML = vals.map((v) => `<option>${v}</option>`).join(''); };
+    fill('proyecto', PROYECTOS);
+    $('proyecto').insertAdjacentHTML('afterbegin', '<option value="">Selecciona un proyecto</option>');
+    $('proyecto').value = '';
     fill('area', AREAS); fill('estado', ESTADOS); fill('tamano', TAMANOS);
     $('estado').insertAdjacentHTML('afterbegin', '<option value="">Sin estado</option>');
     $('estado').value = '';
@@ -61,8 +64,6 @@
       $('app').hidden = !loggedIn;
     }
 
-    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
     // Mensaje de error bajo el campo de clave (estado de error del Text Input: borde rojo + texto de ayuda).
     function keyError(msg) {
       $('key-error').textContent = msg || '';
@@ -71,21 +72,15 @@
     }
     const BAD_KEY = 'Clave incorrecta. Revísala e inténtalo de nuevo.';
 
-    // Lee la hoja (rellena las sugerencias de proyecto y, de paso, valida la clave). Devuelve true si todo fue bien.
-    const fillProyectos = (list) => {
-      $('dl-proyecto').innerHTML = list.map((v) => `<option value="${esc(v)}">`).join('');
-    };
-
-    // blocking=false: refresco silencioso (p. ej. tras guardar), sin overlay.
+    // Comprueba la clave leyendo la hoja (el formulario ya no necesita sus datos). Devuelve true si es válida.
+    // blocking=false: comprobación silenciosa en segundo plano, sin overlay.
     async function load(blocking = true, label = 'Cargando…') {
       try {
-        const tasks = blocking ? await Loading.wrap(label, getTasks) : await getTasks();
-        const proyectos = [...new Set(tasks.map((t) => t.proyecto).filter(Boolean))].sort();
-        fillProyectos(proyectos);
-        dataCache.set('projects', proyectos);
+        await (blocking ? Loading.wrap(label, getTasks) : getTasks());
+        dataCache.set('session', true);
         return true;
       } catch (e) {
-        if (e.status === 401) { teamKey.set(''); dataCache.clear('projects'); show(false); keyError(BAD_KEY); }
+        if (e.status === 401) { teamKey.set(''); dataCache.clear('session'); show(false); keyError(BAD_KEY); }
         else if (!$('gate').hidden) keyError(e.message);
         else $('msg').textContent = e.message;
         return false;
@@ -116,10 +111,9 @@
           area: $('area').value, estado: $('estado').value, tamano: $('tamano').value, nota: $('nota').value,
         });
         msg.className = 'msg ok'; msg.textContent = 'Iniciativa guardada en la hoja.';
-        for (const id of ['iniciativa', 'nota']) $(id).value = '';
-        load(false);
+        for (const id of ['iniciativa', 'nota']) $(id).value = ''; // el proyecto se conserva para cargar varias seguidas
       } catch (err) {
-        if (err.status === 401) { teamKey.set(''); show(false); keyError(BAD_KEY); }
+        if (err.status === 401) { teamKey.set(''); dataCache.clear('session'); show(false); keyError(BAD_KEY); }
         msg.className = 'msg err'; msg.textContent = err.message;
       } finally { Loading.hide(); $('submit').disabled = directMode; }
     };
@@ -131,10 +125,9 @@
     }
     if (directMode) { show(true); load(); }
     else if (teamKey.get()) {
-      // Clave guardada: si ya hay proyectos en caché, el formulario sale al instante y la clave se
-      // valida en segundo plano (si ya no vale, vuelve a la pantalla de clave con el error).
-      const cached = dataCache.get('projects');
-      if (cached) { fillProyectos(cached.data); show(true); load(false); }
+      // Clave ya comprobada antes: el formulario sale al instante y la clave se valida en segundo plano
+      // (si ya no vale, vuelve a la pantalla de clave con el error).
+      if (dataCache.get('session')) { show(true); load(false); }
       else load().then(show);
     } else show(false);
   </script>

@@ -15,7 +15,7 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
 | Columna | Obligatoria | Valores |
 |---|---|---|
 | Iniciativa | sí | texto |
-| Proyecto | sí | texto (Tienda online, Safer, App/AC…) |
+| Proyecto | sí | texto libre en la hoja. El formulario ofrece una lista fija (`PROYECTOS` en `web/index.html`: Tienda online, Safer, App/AC); para añadir un proyecto, añádelo a esa lista |
 | Área | sí | `Producto` o `Diseño` |
 | Tamaño | sí | `small`, `medium`, `large`, `TBD`, `Incluido` |
 | Estado | no | `En curso`, `Hecho`, `Bloqueado`. Si toda la columna está vacía, el dashboard oculta el filtro y el gráfico de estado |
