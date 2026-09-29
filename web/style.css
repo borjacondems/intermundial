@@ -163,7 +163,7 @@ input, select, textarea {
   font: 400 var(--font-size-14)/var(--line-height-20) var(--font-text);
   letter-spacing: var(--letter-spacing-05); color: var(--content-high);
   background: var(--surface-default); border: 1px solid var(--stroke-low); border-radius: var(--size-2);
-  outline: 0; transition: border-color .12s, box-shadow .12s;
+  outline: 0;
 }
 textarea { height: auto; min-height: 88px; padding: 10px var(--size-4); resize: vertical; }
 ::placeholder { color: var(--content-low); opacity: 1; }
@@ -292,6 +292,44 @@ button.linkbtn {
 }
 button.linkbtn:hover:not(:disabled) { filter: none; text-decoration: underline; }
 button.linkbtn[hidden] { display: none; }
+
+/* ---- Efectos ease-in ----
+   Carga de los elementos: fundido con un ligero desplazamiento (ease-in), escalonado entre elementos hermanos.
+   Se aplica a lo que aparece: el contenido de cada pestaña al abrirse (el navegador reinicia la animación al quitar
+   [hidden]), la pantalla de clave, los bloques del dashboard recién cargado (KPIs, tarjetas, gráficos, detalle) y el
+   overlay de carga. El refresco en segundo plano solo actualiza el contenido, así que no vuelve a animar.
+   `backwards` mantiene el elemento oculto durante el retardo del escalonado. */
+@keyframes fade-in { from { opacity: 0; transform: translateY(var(--size-2)); } to { opacity: 1; transform: none; } }
+@keyframes fade-in-plain { from { opacity: 0; } to { opacity: 1; } }
+[role="tabpanel"]:not([hidden]),
+#gate:not([hidden]),
+#root > :not(.grid),
+.grid > * {
+  animation: fade-in .35s ease-in backwards;
+  animation-delay: calc(var(--n, 0) * 60ms);
+}
+.loading:not([hidden]) { animation: fade-in-plain .2s ease-in; }
+#root > :nth-child(2), .grid > :nth-child(2) { --n: 1; }
+#root > :nth-child(3), .grid > :nth-child(3) { --n: 2; }
+#root > :nth-child(4), .grid > :nth-child(4) { --n: 3; }
+#root > :nth-child(5), .grid > :nth-child(5) { --n: 4; }
+#root > :nth-child(n+6), .grid > :nth-child(n+6) { --n: 5; }
+
+/* Estados hover / foco / activo: transición ease-in en botones, etiquetas de filtro, pestañas, enlaces,
+   selectores y campos (color, fondo, borde, sombra y brillo). */
+button, header.top a, select.status, input, select, textarea {
+  transition: color .2s ease-in, background-color .2s ease-in, border-color .2s ease-in,
+              box-shadow .2s ease-in, filter .2s ease-in, opacity .2s ease-in;
+}
+select.status:hover:not(:disabled):not(:focus) { border-color: var(--content-low); }
+input:hover:not(:disabled):not(:focus):not(:user-invalid):not([aria-invalid="true"]),
+select:hover:not(:disabled):not(:focus):not(:user-invalid),
+textarea:hover:not(:disabled):not(:focus):not(:user-invalid) { border-color: var(--content-low); }
+
+@media (prefers-reduced-motion: reduce) {
+  [role="tabpanel"]:not([hidden]), #gate:not([hidden]), #root > *, .grid > *, .loading:not([hidden]) { animation: none; }
+  button, header.top a, select.status, input, select, textarea { transition: none; }
+}
 
 @media (max-width: 600px) {
   header.top { padding: var(--size-4); }
