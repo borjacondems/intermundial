@@ -8,6 +8,8 @@
 // Las columnas se localizan por el nombre de la cabecera, en cualquier orden.
 // Obligatorias: Iniciativa, Proyecto, Área, Tamaño. Opcionales: Cliente, Estado, Nota, Creada.
 
+// Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
+const VERSION = 'estados-2';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Iniciativa', 'Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
@@ -37,7 +39,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return out_({ ok: true });
+  return out_({ ok: true, version: VERSION, estados: ESTADOS });
 }
 
 // ---------- Auth ----------
