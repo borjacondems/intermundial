@@ -28,10 +28,10 @@
     <div id="app" hidden>
       <div class="tabs" role="tablist" aria-label="Secciones">
         <button type="button" class="tab" role="tab" id="tab-table" data-tab="table" aria-selected="true" aria-controls="panel-table">
-          Iniciativas <span class="count" id="count"></span>
+          Tareas <span class="count" id="count"></span>
         </button>
         <button type="button" class="tab" role="tab" id="tab-new" data-tab="new" aria-selected="false" aria-controls="panel-new" tabindex="-1">
-          Nueva iniciativa
+          Nueva tarea
         </button>
       </div>
 
@@ -48,7 +48,7 @@
           <p class="note" id="source" hidden></p>
           <div class="table-wrap">
             <table class="tasks">
-              <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
+              <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Tarea</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
               <tbody id="rows"></tbody>
             </table>
           </div>
@@ -58,13 +58,13 @@
       <section class="card" id="panel-new" role="tabpanel" aria-labelledby="tab-new" hidden>
         <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
         <form class="task" id="form">
-          <div class="full"><label for="iniciativa">Iniciativa *</label><input id="iniciativa" required maxlength="200"></div>
+          <div class="full"><label for="tarea">Tarea *</label><input id="tarea" required maxlength="200"></div>
           <div><label for="proyecto">Proyecto *</label><select id="proyecto" required></select></div>
           <div><label for="area">Área</label><select id="area"></select></div>
           <div><label for="estado">Estado</label><select id="estado"></select></div>
           <div class="full"><label for="tamano">Tamaño (small = 1 pt · medium = 2 · large = 3)</label><select id="tamano"></select></div>
           <div class="full"><label for="nota">Nota</label><textarea id="nota" rows="3" maxlength="1900"></textarea></div>
-          <div class="full"><button id="submit" type="submit">Guardar iniciativa</button>
+          <div class="full"><button id="submit" type="submit">Guardar tarea</button>
             <div class="msg" id="msg" role="status"></div></div>
         </form>
       </section>
@@ -115,7 +115,7 @@
       $('app').hidden = !loggedIn;
     }
 
-    // ---- Tabla de iniciativas ----
+    // ---- Tabla de tareas ----
     // Aviso solo si la lectura directa de la hoja falla y se usa el respaldo (Apps Script): sirve para detectar
     // una fuente equivocada. Con la lectura normal no se muestra nada.
     function describeSource(n) {
@@ -143,15 +143,15 @@
     });
     $('clear').onclick = () => { selected.clear(); paint(); };
 
-    // Dibuja la tabla, el contador y las etiquetas a partir de todas las iniciativas y del filtro elegido.
+    // Dibuja la tabla, el contador y las etiquetas a partir de todas las tareas y del filtro elegido.
     function paint() {
       const visible = selected.size ? allTasks.filter((t) => selected.has(t.proyecto)) : allTasks;
       $('count').textContent = allTasks.length ? `(${allTasks.length})` : '';
       $('rows').innerHTML = visible.length
         ? visible.map((t) => taskRow(t, { statusOptions: ESTADOS, disabled: directMode })).join('')
-        : `<tr><td colspan="7" class="empty">${allTasks.length ? 'Ninguna iniciativa coincide con el filtro.' : 'Aún no hay iniciativas.'}</td></tr>`;
+        : `<tr><td colspan="7" class="empty">${allTasks.length ? 'Ninguna tarea coincide con el filtro.' : 'Aún no hay tareas.'}</td></tr>`;
       $('showing').textContent = allTasks.length
-        ? `Mostrando ${visible.length} de ${allTasks.length} ${allTasks.length === 1 ? 'iniciativa' : 'iniciativas'}`
+        ? `Mostrando ${visible.length} de ${allTasks.length} ${allTasks.length === 1 ? 'tarea' : 'tareas'}`
         : '';
       $('clear').hidden = !selected.size;
       for (const b of chips) {
@@ -264,20 +264,20 @@
       e.preventDefault();
       const msg = $('msg'); msg.className = 'msg'; msg.textContent = '';
       $('submit').disabled = true;
-      Loading.show('Guardando iniciativa…');
+      Loading.show('Guardando tarea…');
       try {
         const nota = $('nota').value;
         const saved = await createTask({
-          iniciativa: $('iniciativa').value, proyecto: $('proyecto').value,
+          iniciativa: $('tarea').value, proyecto: $('proyecto').value,
           area: $('area').value, estado: $('estado').value, tamano: $('tamano').value, nota,
         });
-        msg.className = 'msg ok'; msg.textContent = 'Iniciativa guardada en la hoja.';
+        msg.className = 'msg ok'; msg.textContent = 'Tarea guardada en la hoja.';
         // La fila aparece en la tabla al instante; después se relee la hoja en segundo plano.
         const antes = (dataCache.get('tasks') || { data: [] }).data;
         const tasks = [...antes, { id: saved.id, iniciativa: saved.iniciativa, cliente: '', proyecto: saved.proyecto, area: saved.area, estado: saved.estado, tamano: saved.tamano, nota }];
         dataCache.set('tasks', tasks);
         renderTable(tasks);
-        for (const id of ['iniciativa', 'nota']) $(id).value = ''; // el proyecto se conserva para cargar varias seguidas
+        for (const id of ['tarea', 'nota']) $(id).value = ''; // el proyecto se conserva para cargar varias seguidas
         load({ blocking: false, min: tasks.length });
       } catch (err) {
         if (err.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }

@@ -49,7 +49,7 @@ const TIMEOUT_MS = 20000;
 // Apps Script no admite cabeceras personalizadas ni preflight CORS:
 // todo va por POST con cuerpo JSON como text/plain, y los errores llegan en el JSON.
 // Las lecturas (retry) se reintentan una vez si se agota el tiempo o falla la red; las escrituras nunca,
-// para no guardar la misma iniciativa dos veces.
+// para no guardar la misma tarea dos veces.
 async function call(payload, { retry = false } = {}) {
   for (let attempt = 0; ; attempt++) {
     const ctrl = new AbortController();
@@ -74,7 +74,7 @@ async function call(payload, { retry = false } = {}) {
       if (e.name === 'AbortError') {
         throw new Error(retry
           ? 'El servidor tarda demasiado en responder. Inténtalo de nuevo en unos segundos.'
-          : 'El servidor tarda demasiado en responder. Puede que la iniciativa sí se haya guardado: revisa la hoja antes de reintentar.');
+          : 'El servidor tarda demasiado en responder. Puede que la tarea sí se haya guardado: revisa la hoja antes de reintentar.');
       }
       if (e instanceof TypeError) throw new Error('No se pudo conectar con el servidor. Comprueba tu conexión.');
       throw e;
@@ -130,12 +130,15 @@ async function readSheet(client) {
   const head = rows.shift().map((h) => h.trim());
   const col = (name) => head.indexOf(name);
   const get = (r, name) => (col(name) < 0 ? '' : (r[col(name)] || '').trim());
-  for (const h of ['Iniciativa', 'Proyecto', 'Área', 'Tamaño'])
+  // La columna del título puede llamarse «Tarea» o «Iniciativa» (nombre anterior).
+  const titleCol = col('Tarea') >= 0 ? 'Tarea' : 'Iniciativa';
+  if (col(titleCol) < 0) throw new Error('Falta la columna «Tarea» en la hoja');
+  for (const h of ['Proyecto', 'Área', 'Tamaño'])
     if (col(h) < 0) throw new Error(`Falta la columna «${h}» en la hoja`);
   const byClient = client && col('Cliente') >= 0;
   return rows
     .map((r, i) => ({
-      id: String(i + 2), iniciativa: get(r, 'Iniciativa'), cliente: get(r, 'Cliente'), proyecto: get(r, 'Proyecto'),
+      id: String(i + 2), iniciativa: get(r, titleCol), cliente: get(r, 'Cliente'), proyecto: get(r, 'Proyecto'),
       area: get(r, 'Área'), estado: get(r, 'Estado'), tamano: get(r, 'Tamaño'), nota: get(r, 'Nota'),
     }))
     .filter((t) => t.iniciativa && (!byClient || t.cliente === client));
@@ -166,7 +169,7 @@ const createTask = (task) => {
   return call({ action: 'create', key: teamKey.get(), task });
 };
 
-// Cambia campos de una fila existente (por ahora solo el estado). `iniciativa` sirve al servidor para comprobar
+// Cambia campos de una fila existente (por ahora solo el estado). `iniciativa` (el título de la tarea) sirve al servidor para comprobar
 // que la fila sigue siendo la misma. Nunca se reintenta: es una escritura.
 const updateTask = (id, iniciativa, changes) => {
   if (directMode) throw new Error('El backend aún no está desplegado: por ahora la tabla es de solo lectura.');

@@ -83,7 +83,7 @@ const TEMPLATE = (internal) => `
   <p id="err" class="msg err" hidden></p>
   <p class="note" id="direct" hidden></p>
   <p class="note" id="status" role="status" hidden></p>
-  <p class="note">Esfuerzo: small = 1 pt · medium = 2 pts · large = 3 pts. No se cuentan las iniciativas TBD ni «Todo lo pasado de Producto».</p>
+  <p class="note">Esfuerzo: small = 1 pt · medium = 2 pts · large = 3 pts. No se cuentan las tareas TBD ni «Todo lo pasado de Producto».</p>
   <div class="filters">
     <div><label for="f-proyecto">Proyecto</label><select id="f-proyecto"></select></div>
     <div><label for="f-area">Área</label><select id="f-area"></select></div>
@@ -105,7 +105,7 @@ const TEMPLATE = (internal) => `
     <div class="card"><h2>Tareas por tamaño</h2><div class="chart-box"><canvas id="c-tamano"></canvas></div></div>
   </div>
   <div class="card"><h2>Detalle</h2>
-    <div class="table-wrap"><table class="tasks"><thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Iniciativa</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="table-wrap"><table class="tasks"><thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Tarea</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead><tbody id="rows"></tbody></table></div>
   </div>`;
 
 const FILTERS = [['f-proyecto', 'proyecto'], ['f-area', 'area'], ['f-estado', 'estado'], ['f-tamano', 'tamano']];
@@ -116,8 +116,8 @@ function showError(msg) {
   el.textContent = msg;
 }
 
-// Fila de la tabla de iniciativas (la usan el dashboard y la pestaña «Iniciativas» del formulario).
-// Con { statusOptions } el estado es un selector editable (pestaña «Iniciativas» del equipo); sin él, una etiqueta.
+// Fila de la tabla de tareas (la usan el dashboard y la pestaña «Tareas» del formulario).
+// Con { statusOptions } el estado es un selector editable (pestaña «Tareas» del equipo); sin él, una etiqueta.
 function taskRow(t, { statusOptions = null, disabled = false } = {}) {
   const dot = AREAS.includes(t.area) ? areaColor(t.area) : css('--content-low');
   const estado = statusOptions

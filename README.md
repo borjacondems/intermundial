@@ -1,7 +1,7 @@
 # Gestor de roadmap → Google Sheets → Dashboard
 
 ```
-Usuario A (añade iniciativas) ─► index.html  ─────────────► Apps Script (web app) ─► Google Sheets (pestaña "roadmap")
+Usuario A (añade tareas) ─► index.html  ─────────────► Apps Script (web app) ─► Google Sheets (pestaña "roadmap")
 Usuario B (consulta) ──────────► dashboard.html#c=..&k=.. ─┘  (solo lectura)
 ```
 
@@ -14,7 +14,7 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
 
 | Columna | Obligatoria | Valores |
 |---|---|---|
-| Iniciativa | sí | texto |
+| Tarea | sí | texto. La columna también puede llamarse «Iniciativa» (nombre anterior); se acepta cualquiera de los dos |
 | Proyecto | sí | texto libre en la hoja. El formulario ofrece una lista fija (`PROYECTOS` en `web/index.html`: Tienda online, Safer, App/AC); para añadir un proyecto, añádelo a esa lista |
 | Área | sí | `Producto` o `Diseño` |
 | Tamaño | sí | `small`, `medium`, `large`, `TBD`, `Incluido` |
@@ -47,11 +47,11 @@ Son dos páginas independientes, cada una con su propia credencial y sin enlaces
 
 | Usuario | Página | Credencial |
 |---|---|---|
-| Añade iniciativas | `index.html` | `TEAM_KEY` (la teclea una vez; queda guardada en su navegador). En la tabla, el **estado** de cada iniciativa se cambia desde su selector y el cambio se guarda en la hoja (columna Estado; requiere el Apps Script actualizado a la versión `update-1`). Tiene dos pestañas: **Iniciativas** (tabla con las filas de la hoja, con etiquetas para filtrar por proyecto y un contador de las que se están viendo) y **Nueva iniciativa** (formulario) |
+| Añade tareas | `index.html` | `TEAM_KEY` (la teclea una vez; queda guardada en su navegador). En la tabla, el **estado** de cada tarea se cambia desde su selector y el cambio se guarda en la hoja (columna Estado; requiere el Apps Script actualizado a la versión `update-1` o posterior). Tiene dos pestañas: **Tareas** (tabla con las filas de la hoja, con etiquetas para filtrar por proyecto y un contador de las que se están viendo) y **Nueva tarea** (formulario) |
 | Consulta el dashboard | `dashboard.html` | clave de `CLIENT_KEYS`, dentro del enlace |
 | Administrador | las dos | `ADMIN_KEY`: se teclea en el campo de clave de cualquiera de las dos páginas |
 
-`ADMIN_KEY` permite añadir iniciativas y ver el dashboard de cualquier cliente (o de todos a la vez). Las claves de equipo y de cliente no la sustituyen: la de equipo no abre el dashboard y la de cliente solo abre el suyo.
+`ADMIN_KEY` permite añadir tareas y ver el dashboard de cualquier cliente (o de todos a la vez). Las claves de equipo y de cliente no la sustituyen: la de equipo no abre el dashboard y la de cliente solo abre el suyo.
 Enlace del dashboard:
 ```
 https://ORG.github.io/REPO/dashboard.html#c=Intermundial&k=clave-larga-aleatoria
@@ -59,18 +59,18 @@ https://ORG.github.io/REPO/dashboard.html#c=Intermundial&k=clave-larga-aleatoria
 Tras abrirlo una vez con el enlace, el navegador recuerda el acceso y `dashboard.html` funciona también sin el `#…`. Si la clave deja de valer, el acceso guardado se borra y hay que usar el enlace nuevo. El fragmento (`#`) no se envía a ningún servidor. Para revocar el acceso, cambia esa clave en `CLIENT_KEYS`. Botón «Imprimir / PDF» para guardar un informe.
 
 ## Modelo de datos
-Iniciativa · Cliente · Proyecto · Área (Producto/Diseño) · Estado (En curso/Hecho/Bloqueado) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
+Tarea · Cliente · Proyecto · Área (Producto/Diseño) · Estado (En curso/Hecho/Bloqueado) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
 Esfuerzo: small = 1 pt, medium = 2, large = 3. `TBD` e `Incluido` («Todo lo pasado de Producto») no computan.
 Con los datos actuales de la hoja: 36 tareas y 63 pts (el PDF daba 35 y 61: en la hoja «Reembolso automático» es `medium` en lugar de TBD).
 
 ## Ver el dashboard sin desplegar
-Mientras `web/js/config.js` tenga el marcador `TU_ID_DE_DESPLIEGUE`, las páginas leen la hoja directamente en modo **solo lectura** (requiere servirlas con `npx serve web`: Chrome no permite esa lectura desde `file://`). Guardar iniciativas y las claves solo funcionan con el Apps Script desplegado.
+Mientras `web/js/config.js` tenga el marcador `TU_ID_DE_DESPLIEGUE`, las páginas leen la hoja directamente en modo **solo lectura** (requiere servirlas con `npx serve web`: Chrome no permite esa lectura desde `file://`). Guardar tareas y las claves solo funcionan con el Apps Script desplegado.
 
 ## Rendimiento
 Apps Script tarda de 3 a 10 s por petición (con picos mayores), así que las páginas no esperan a que responda si ya han cargado datos antes:
 - **Dashboard:** guarda una copia en el navegador. Las visitas siguientes se pintan al instante y se refrescan en segundo plano (verás «Actualizando…» y luego la hora de los datos). Si el servidor falla, se sigue viendo la copia con un aviso.
-- **Tabla de iniciativas (`index.html`):** se lee directamente de la hoja de Google en CSV (~0,5 s, sin pasar por Apps Script). Requiere que la hoja esté compartida con «cualquiera con el enlace»; si no lo está o no responde, se usa el Apps Script como respaldo. Guardar sigue yendo por Apps Script; la fila nueva aparece en la tabla al instante y se confirma al releer la hoja. La clave de equipo se comprueba al introducirla y al guardar, no en cada carga.
-- Las lecturas tienen un tiempo máximo de 20 s y se reintentan una vez. Guardar nunca se reintenta, para no duplicar una iniciativa.
+- **Tabla de tareas (`index.html`):** se lee directamente de la hoja de Google en CSV (~0,5 s, sin pasar por Apps Script). Requiere que la hoja esté compartida con «cualquiera con el enlace»; si no lo está o no responde, se usa el Apps Script como respaldo. Guardar sigue yendo por Apps Script; la fila nueva aparece en la tabla al instante y se confirma al releer la hoja. La clave de equipo se comprueba al introducirla y al guardar, no en cada carga.
+- Las lecturas tienen un tiempo máximo de 20 s y se reintentan una vez. Guardar nunca se reintenta, para no duplicar una tarea.
 
 ## Notas
 - Apps Script tarda ~1-2 s por petición; para un equipo pequeño es suficiente.

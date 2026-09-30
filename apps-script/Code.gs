@@ -7,12 +7,13 @@
 //   CLIENT_KEYS  JSON con una clave por cliente, ej. {"Intermundial":"clave-larga"}
 //
 // Las columnas se localizan por el nombre de la cabecera, en cualquier orden.
-// Obligatorias: Iniciativa, Proyecto, Área, Tamaño. Opcionales: Cliente, Estado, Nota, Creada.
+// Obligatorias: Tarea (o «Iniciativa», nombre anterior de esa columna), Proyecto, Área, Tamaño.
+// Opcionales: Cliente, Estado, Nota, Creada.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'update-1';
+const VERSION = 'tareas-1';
 const DEFAULT_SHEET_NAME = 'roadmap';
-const REQUIRED = ['Iniciativa', 'Proyecto', 'Área', 'Tamaño'];
+const REQUIRED = ['Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
 const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
 const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
@@ -94,6 +95,9 @@ function columns_(head) {
   head.forEach((h, i) => {
     idx[String(h).trim()] = i;
   });
+  // El título de la tarea puede estar en una columna «Tarea» o «Iniciativa»; idx.title apunta a la que exista.
+  idx.title = idx['Tarea'] !== undefined ? idx['Tarea'] : idx['Iniciativa'];
+  if (idx.title === undefined) throw fail_(500, 'Falta la columna «Tarea» en la hoja');
   REQUIRED.forEach((h) => {
     if (idx[h] === undefined) throw fail_(500, 'Falta la columna «' + h + '» en la hoja');
   });
@@ -109,7 +113,7 @@ function listTasks_(client) {
   return values
     .map((r, i) => ({
       id: String(i + 2), // nº de fila en la hoja
-      iniciativa: get(r, 'Iniciativa'),
+      iniciativa: String(r[idx.title] == null ? '' : r[idx.title]).trim(),
       cliente: get(r, 'Cliente'),
       proyecto: get(r, 'Proyecto'),
       area: get(r, 'Área'),
@@ -124,13 +128,14 @@ function createTask_(t) {
   const iniciativa = str_(t.iniciativa, 200);
   const proyecto = str_(t.proyecto, 100);
   const estado = str_(t.estado, 50);
-  if (!iniciativa) throw fail_(400, 'La iniciativa necesita un nombre');
+  if (!iniciativa) throw fail_(400, 'La tarea necesita un nombre');
   if (!proyecto) throw fail_(400, 'Falta el proyecto');
   if (AREAS.indexOf(t.area) < 0) throw fail_(400, 'Área no válida');
   if (estado && ESTADOS.indexOf(estado) < 0) throw fail_(400, 'Estado no válido');
   if (TAMANOS.indexOf(t.tamano) < 0) throw fail_(400, 'Tamaño no válido');
 
   const byHeader = {
+    Tarea: iniciativa, // se escribe en la columna que exista: «Tarea» o «Iniciativa»
     Iniciativa: iniciativa,
     Cliente: str_(t.cliente, 100),
     Proyecto: proyecto,
@@ -173,7 +178,7 @@ function updateTask_(id, iniciativa, changes) {
     if (idx['Estado'] === undefined) throw fail_(500, 'Falta la columna «Estado» en la hoja');
     const changed = 'La hoja ha cambiado desde que se cargó la tabla. Recarga la página.';
     if (row > sheet.getLastRow()) throw fail_(409, changed);
-    const current = String(sheet.getRange(row, idx['Iniciativa'] + 1).getValue()).trim();
+    const current = String(sheet.getRange(row, idx.title + 1).getValue()).trim();
     if (current !== String(iniciativa == null ? '' : iniciativa).trim()) throw fail_(409, changed);
     sheet.getRange(row, idx['Estado'] + 1).setValue(safe_(estado));
     return { id: String(row), estado };
