@@ -126,9 +126,8 @@ const TEMPLATE = (internal) => `
     <div class="card" id="card-estado"><h2>Tareas por estado</h2><div class="chart-box"><canvas id="c-estado"></canvas></div></div>
     <div class="card"><h2>Tareas por tamaño</h2><div class="chart-box"><canvas id="c-tamano"></canvas></div></div>
   </div>
-  <div class="card"><h2>Detalle</h2>
-    <div class="table-wrap"><table class="tasks"><thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Tarea</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead><tbody id="rows"></tbody></table></div>
-  </div>`;
+  <h2 class="sec">Detalle de tareas</h2>
+  <div id="detail"></div>`;
 
 const FILTERS = [['f-proyecto', 'proyecto'], ['f-area', 'area'], ['f-estado', 'estado'], ['f-tamano', 'tamano']];
 
@@ -166,6 +165,8 @@ const hhmm = (t) => new Date(t).toLocaleTimeString('es-ES', { hour: '2-digit', m
 function mount(root, initial, { internal = false } = {}) {
   let all = prepare(initial);
   root.innerHTML = TEMPLATE(internal);
+  // Tabla de tareas con etiquetas por proyecto y contador. Recibe las tareas que dejan pasar los filtros de arriba.
+  const detail = TaskTable.init(root.querySelector('#detail'), { projects: () => projects(all) });
   const $ = (id) => document.getElementById(id);
   // Gráficos con la tipografía y los colores del Design System (low/xs, content-mid, stroke-low).
   Chart.defaults.font.family = css('--font-text');
@@ -218,7 +219,7 @@ function mount(root, initial, { internal = false } = {}) {
     const sizes = SIZES;
     stacked('c-tamano', sizes, Object.fromEntries(AREAS.map((a) => [a, sizes.map((z) => count((t) => t.tamano === z && t.area === a))])));
 
-    $('rows').innerHTML = tasks.map((t) => taskRow(t)).join('');
+    detail.setTasks(tasks); // misma tabla que en el formulario, sin poder cambiar el estado
   }
   buildFilters();
   update();

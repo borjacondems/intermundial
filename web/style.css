@@ -340,5 +340,5 @@ textarea:hover:not(:disabled):not(:focus):not(:user-invalid) { border-color: var
 @media print {
   header.top { background: none; color: var(--content-high); padding-left: 0; }
   header.top h1 { color: var(--content-high); }
-  header.top nav, .filters, .noprint, .loading { display: none; }
+  header.top nav, .filters, .noprint, .loading, .chips, .linkbtn { display: none; }
 }

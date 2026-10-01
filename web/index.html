@@ -35,25 +35,7 @@
         </button>
       </div>
 
-      <div id="panel-table" role="tabpanel" aria-labelledby="tab-table">
-        <div class="filterbar">
-          <div class="chips" id="chips" role="group" aria-label="Filtrar por proyecto"></div>
-          <div class="showing">
-            <span id="showing" role="status" aria-live="polite"></span>
-            <button type="button" class="linkbtn" id="clear" hidden>Quitar filtros</button>
-          </div>
-        </div>
-        <section class="card">
-          <p class="msg err" id="table-msg" role="status" hidden></p>
-          <p class="note" id="source" hidden></p>
-          <div class="table-wrap">
-            <table class="tasks">
-              <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Tarea</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
-              <tbody id="rows"></tbody>
-            </table>
-          </div>
-        </section>
-      </div>
+      <div id="panel-table" role="tabpanel" aria-labelledby="tab-table"></div>
 
       <section class="card" id="panel-new" role="tabpanel" aria-labelledby="tab-new" hidden>
         <p class="msg err" id="offline" hidden>El backend (Apps Script) aún no está configurado: no se puede guardar en la hoja. Sigue los pasos del README y pon la URL <code>/exec</code> en <code>js/config.js</code>.</p>
@@ -75,6 +57,7 @@
   <script src="js/loading.js"></script>
   <script src="js/api.js"></script>
   <script src="js/dashboard.js"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
+  <script src="js/tasktable.js"></script>
   <script>
 
     const PROYECTOS = ['Tienda online', 'Safer', 'App/AC'];
@@ -132,36 +115,12 @@
       return text;
     }
 
-    // ---- Filtros por proyecto (etiquetas): sin ninguna seleccionada se ven todas; se pueden combinar ----
-    let allTasks = [];
-    const selected = new Set();
-    const chips = PROYECTOS.map((name) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip';
-      b.dataset.proyecto = name;
-      b.textContent = name;
-      b.onclick = () => { selected.has(name) ? selected.delete(name) : selected.add(name); paint(); };
-      $('chips').appendChild(b);
-      return b;
+    // ---- Tabla con etiquetas de filtro por proyecto y contador (módulo compartido con el dashboard) ----
+    const table = TaskTable.init($('panel-table'), {
+      projects: PROYECTOS,
+      rowOptions: { statusOptions: ESTADOS, disabled: directMode }, // estado editable
+      onChange: ({ total }) => { $('count').textContent = total ? `(${total})` : ''; },
     });
-    $('clear').onclick = () => { selected.clear(); paint(); };
-
-    // Dibuja la tabla, el contador y las etiquetas a partir de todas las tareas y del filtro elegido.
-    function paint() {
-      const visible = selected.size ? allTasks.filter((t) => selected.has(t.proyecto)) : allTasks;
-      $('count').textContent = allTasks.length ? `(${allTasks.length})` : '';
-      $('rows').innerHTML = visible.length
-        ? visible.map((t) => taskRow(t, { statusOptions: ESTADOS, disabled: directMode })).join('')
-        : `<tr><td colspan="7" class="empty">${allTasks.length ? 'Ninguna tarea coincide con el filtro.' : 'Aún no hay tareas.'}</td></tr>`;
-      $('showing').textContent = allTasks.length
-        ? `Mostrando ${visible.length} de ${allTasks.length} ${allTasks.length === 1 ? 'tarea' : 'tareas'}`
-        : '';
-      $('clear').hidden = !selected.size;
-      for (const b of chips) {
-        b.setAttribute('aria-pressed', selected.has(b.dataset.proyecto));
-      }
-    }
 
     // ---- Cambio de estado desde la tabla: se guarda en la hoja (Apps Script) ----
     // Tras guardar, la lectura directa de la hoja puede tardar unos segundos en reflejar el cambio; mientras tanto se
@@ -179,7 +138,7 @@
     $('rows').addEventListener('change', async (e) => {
       const sel = e.target.closest('select.status');
       if (!sel) return;
-      const task = allTasks.find((t) => t.id === sel.dataset.id);
+      const task = table.tasks().find((t) => t.id === sel.dataset.id);
       if (!task) return;
       const anterior = task.estado, nuevo = sel.value;
       if (nuevo === anterior) return;
@@ -189,7 +148,7 @@
         await updateTask(task.id, task.iniciativa, { estado: nuevo });
         task.estado = nuevo;
         pendientes.set(task.id, { iniciativa: task.iniciativa, estado: nuevo, hasta: Date.now() + 60000 });
-        dataCache.set('tasks', allTasks);
+        dataCache.set('tasks', table.tasks());
       } catch (err) {
         sel.value = anterior; // el cambio no se guardó: el selector vuelve a como estaba
         if (err.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }
@@ -200,16 +159,15 @@
         }
       } finally {
         Loading.hide();
-        paint();
+        table.paint();
       }
     });
 
     function renderTable(tasks) {
-      allTasks = prepare(tasks);
+      table.setTasks(tasks);
       const note = describeSource(tasks.length);
       $('source').textContent = note;
       $('source').hidden = !note;
-      paint();
     }
 
     // Mensaje de error bajo el campo de clave (estado de error del Text Input: borde rojo + texto de ayuda).
