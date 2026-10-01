@@ -79,6 +79,7 @@ Mientras `web/js/config.js` tenga el marcador `TU_ID_DE_DESPLIEGUE`, las página
 Apps Script tarda de 3 a 10 s por petición (con picos mayores), así que las páginas no esperan a que responda si ya han cargado datos antes:
 - **Dashboard:** guarda una copia en el navegador. Las visitas siguientes se pintan al instante y se refrescan en segundo plano (verás «Actualizando…» y luego la hora de los datos). Si el servidor falla, se sigue viendo la copia con un aviso.
 - **Tabla de tareas (`index.html`):** se lee directamente de la hoja de Google en CSV (~0,5 s, sin pasar por Apps Script). Requiere que la hoja esté compartida con «cualquiera con el enlace»; si no lo está o no responde, se usa el Apps Script como respaldo. Guardar sigue yendo por Apps Script; la fila nueva aparece en la tabla al instante y se confirma al releer la hoja. La clave de equipo se comprueba al introducirla y al guardar, no en cada carga.
+- **Tablas de tareas (formulario y dashboard):** paginadas, con un máximo de 20 filas por página (`pageSize` en `web/js/tasktable.js`). Cambiar una etiqueta o un filtro vuelve a la página 1; un refresco en segundo plano conserva la página. Al imprimir el dashboard salen todas las tareas.
 - Las lecturas tienen un tiempo máximo de 20 s y se reintentan una vez. Guardar nunca se reintenta, para no duplicar una tarea.
 
 ## Notas

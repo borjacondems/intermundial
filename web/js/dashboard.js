@@ -188,11 +188,11 @@ function mount(root, initial, { internal = false } = {}) {
       if (key === 'tamano') vals.sort((a, b) => SIZE_ORDER.indexOf(a) - SIZE_ORDER.indexOf(b)); // XS … XL, TBD, Incluido
       $(id).innerHTML = '<option value="">Todos</option>' + vals.map((v) => `<option>${esc(v)}</option>`).join('');
       if (vals.includes(prev)) $(id).value = prev;
-      $(id).onchange = update;
+      $(id).onchange = () => update(true); // otro filtro: la tabla vuelve a la página 1
     }
   }
 
-  function update() {
+  function update(resetPage = false) {
     const hasEstado = all.some((t) => t.estado);
     const f = Object.fromEntries(FILTERS.map(([id, key]) => [key, $(id).value]));
     const tasks = all.filter((t) => Object.entries(f).every(([k, v]) => !v || t[k] === v));
@@ -219,7 +219,7 @@ function mount(root, initial, { internal = false } = {}) {
     const sizes = SIZES;
     stacked('c-tamano', sizes, Object.fromEntries(AREAS.map((a) => [a, sizes.map((z) => count((t) => t.tamano === z && t.area === a))])));
 
-    detail.setTasks(tasks); // misma tabla que en el formulario, sin poder cambiar el estado
+    detail.setTasks(tasks, { keepPage: !resetPage }); // misma tabla que en el formulario, sin poder cambiar el estado
   }
   buildFilters();
   update();

@@ -331,6 +331,23 @@ textarea:hover:not(:disabled):not(:focus):not(:user-invalid) { border-color: var
   button, header.top a, select.status, input, select, textarea { transition: none; }
 }
 
+/* ---- Paginador de la tabla de tareas ---- */
+.pager {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--size-3) var(--size-4);
+  margin-top: var(--size-4); padding-top: var(--size-4); border-top: 1px solid var(--stroke-low); color: var(--content-mid);
+}
+.pager[hidden] { display: none; }
+.pages { display: flex; flex-wrap: wrap; align-items: center; gap: var(--size-1); }
+button.page {
+  height: 32px; min-width: 32px; padding: 0 var(--size-3); border-radius: var(--size-2);
+  background: var(--surface-default); color: var(--content-high); border: 1px solid var(--stroke-low);
+  font: 400 var(--font-size-14)/var(--line-height-20) var(--font-text); letter-spacing: var(--letter-spacing-05);
+}
+button.page:hover:not(:disabled):not([aria-current]) { filter: none; border-color: var(--content-low); }
+button.page[aria-current="page"] { background: var(--surface-blue2); border-color: var(--semantic-primary); cursor: default; }
+button.page:focus-visible { outline: 2px solid var(--semantic-primary); outline-offset: 2px; }
+.pages .gap { padding: 0 var(--size-1); color: var(--content-low); }
+
 @media (max-width: 600px) {
   header.top { padding: var(--size-4); }
   header.top h1 { font: 400 var(--font-size-24)/var(--line-height-30) var(--font-text); letter-spacing: var(--letter-spacing-12); }
@@ -340,5 +357,5 @@ textarea:hover:not(:disabled):not(:focus):not(:user-invalid) { border-color: var
 @media print {
   header.top { background: none; color: var(--content-high); padding-left: 0; }
   header.top h1 { color: var(--content-high); }
-  header.top nav, .filters, .noprint, .loading, .chips, .linkbtn { display: none; }
+  header.top nav, .filters, .noprint, .loading, .chips, .linkbtn, .pager { display: none; }
 }
