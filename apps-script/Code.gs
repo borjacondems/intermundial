@@ -8,15 +8,23 @@
 //
 // Las columnas se localizan por el nombre de la cabecera, en cualquier orden.
 // Obligatorias: Tarea (o «Iniciativa», nombre anterior de esa columna), Proyecto, Área, Tamaño.
-// Opcionales: Cliente, Estado, Nota, Creada.
+// Opcionales: Cliente, Estado, Nota, Creada, Puntos (la crea setupSheet).
+//
+// Escala de tamaños (puntos de esfuerzo): XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. TBD e «Incluido» no puntúan.
+// Para preparar la hoja con esta escala, ejecuta UNA vez la función setupSheet desde el editor.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'tareas-1';
+const VERSION = 'escala-1';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
 const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
-const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
+// Escala de tamaños → puntos de esfuerzo. Debe coincidir con PTS en web/js/dashboard.js.
+const SCALE = { XS: 1, S: 2, M: 8, L: 16, XL: 32 };
+const NO_POINTS = ['TBD', 'Incluido'];
+const TAMANOS = Object.keys(SCALE).concat(NO_POINTS);
+// Nombres anteriores de los tamaños: se aceptan al guardar y setupSheet los migra en la hoja.
+const LEGACY_SIZES = { small: 'S', medium: 'M', large: 'L' };
 
 // Todas las peticiones son POST con cuerpo JSON en text/plain (evita el preflight CORS).
 function doPost(e) {
@@ -132,7 +140,8 @@ function createTask_(t) {
   if (!proyecto) throw fail_(400, 'Falta el proyecto');
   if (AREAS.indexOf(t.area) < 0) throw fail_(400, 'Área no válida');
   if (estado && ESTADOS.indexOf(estado) < 0) throw fail_(400, 'Estado no válido');
-  if (TAMANOS.indexOf(t.tamano) < 0) throw fail_(400, 'Tamaño no válido');
+  const tamano = normalizeSize_(t.tamano);
+  if (!tamano) throw fail_(400, 'Tamaño no válido');
 
   const byHeader = {
     Tarea: iniciativa, // se escribe en la columna que exista: «Tarea» o «Iniciativa»
@@ -141,7 +150,7 @@ function createTask_(t) {
     Proyecto: proyecto,
     Área: t.area,
     Estado: estado,
-    Tamaño: t.tamano,
+    Tamaño: tamano,
     Nota: str_(t.nota, 1900),
     Creada: new Date().toISOString(),
   };
@@ -150,10 +159,15 @@ function createTask_(t) {
   try {
     const sheet = sheet_();
     const head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
-    columns_(head);
+    const idx = columns_(head);
     const row = head.map((h) => (byHeader[h] === undefined ? '' : safe_(byHeader[h])));
     sheet.appendRow(row);
-    return { id: String(sheet.getLastRow()), iniciativa, proyecto, area: t.area, estado, tamano: t.tamano };
+    const newRow = sheet.getLastRow();
+    // Si la hoja tiene la columna «Puntos», la fila nueva lleva su fórmula como las demás.
+    if (idx['Puntos'] !== undefined) {
+      sheet.getRange(newRow, idx['Puntos'] + 1).setFormula(pointsFormula_(colLetter_(idx['Tamaño'] + 1) + newRow));
+    }
+    return { id: String(newRow), iniciativa, proyecto, area: t.area, estado, tamano };
   } finally {
     lock.releaseLock();
   }
@@ -185,6 +199,89 @@ function updateTask_(id, iniciativa, changes) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---------- Escala de tamaños ----------
+
+// Devuelve el tamaño en su forma canónica (XS, S, M, L, XL, TBD, Incluido) o '' si no se reconoce.
+// Acepta mayúsculas/minúsculas y los nombres anteriores small / medium / large.
+function normalizeSize_(v) {
+  const s = String(v == null ? '' : v).trim();
+  const low = s.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(LEGACY_SIZES, low)) return LEGACY_SIZES[low];
+  const up = s.toUpperCase();
+  if (Object.prototype.hasOwnProperty.call(SCALE, up)) return up;
+  if (low === 'tbd') return 'TBD';
+  if (low === 'incluido') return 'Incluido';
+  return '';
+}
+
+// Fórmula de la columna «Puntos» para la celda de tamaño dada (p. ej. D2). Sintaxis en inglés: la exige setFormula.
+function pointsFormula_(cell) {
+  const pares = Object.keys(SCALE).map((k) => '"' + k + '",' + SCALE[k]).join(',');
+  return '=IFERROR(SWITCH(' + cell + ',' + pares + '),0)';
+}
+
+function colLetter_(n) {
+  let s = '';
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+// Prepara la hoja con la escala nueva. Ejecútala UNA vez desde el editor de Apps Script (Ejecutar ▸ setupSheet);
+// se puede repetir sin problema. Hace tres cosas:
+//   1. Migra los tamaños antiguos de la columna «Tamaño»: small → S, medium → M, large → L (el resto no se toca).
+//   2. Pone en esa columna un desplegable con XS, S, M, L, XL, TBD e Incluido (no admite otros valores).
+//   3. Crea la columna «Puntos» (si no existe) con la fórmula que convierte cada tamaño en sus puntos.
+// Devuelve (y escribe en el registro) un resumen de lo que ha cambiado.
+function setupSheet() {
+  const sheet = sheet_();
+  const head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
+  const idx = columns_(head);
+  const tCol = idx['Tamaño'] + 1;
+  const rows = Math.max(sheet.getLastRow() - 1, 0);
+  const report = { migrados: 0, sinReconocer: [], filas: rows, columnaPuntos: '' };
+
+  if (rows) {
+    const range = sheet.getRange(2, tCol, rows, 1);
+    const out = range.getValues().map((r, i) => {
+      const raw = String(r[0]).trim();
+      if (!raw) return [r[0]];
+      const n = normalizeSize_(raw);
+      if (!n) {
+        report.sinReconocer.push('fila ' + (i + 2) + ': «' + raw + '»');
+        return [r[0]];
+      }
+      if (n !== raw) report.migrados++;
+      return [n];
+    });
+    range.setValues(out);
+  }
+
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(TAMANOS, true)
+    .setAllowInvalid(false)
+    .setHelpText('Tamaño: ' + Object.keys(SCALE).map((k) => k + ' = ' + SCALE[k]).join(' · ') + ' puntos; TBD o Incluido (sin puntos).')
+    .build();
+  sheet.getRange(2, tCol, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(rule);
+
+  let pCol = head.indexOf('Puntos') + 1;
+  if (!pCol) {
+    pCol = head.length + 1;
+    sheet.getRange(1, pCol).setValue('Puntos').setFontWeight('bold');
+  }
+  if (rows) {
+    const formulas = [];
+    for (let r = 2; r <= rows + 1; r++) formulas.push([pointsFormula_(colLetter_(tCol) + r)]);
+    sheet.getRange(2, pCol, rows, 1).setFormulas(formulas);
+  }
+  report.columnaPuntos = colLetter_(pCol);
+  Logger.log(JSON.stringify(report));
+  return report;
 }
 
 // ---------- Utilidades ----------

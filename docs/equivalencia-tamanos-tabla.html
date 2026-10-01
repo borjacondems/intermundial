@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Escala de tamaño de las tareas</title>
+<style>
+  /* Tokens del Design System (los mismos que usa la aplicación) */
+  :root {
+    --content-high: #131d34;
+    --content-mid: rgba(19, 29, 52, .65);
+    --content-low: rgba(19, 29, 52, .45);
+    --stroke-low: rgba(19, 29, 52, .12);
+    --surface-blue2: #e0f0ff;
+    --semantic-primary: #0080f6;
+    --font-text: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; width: 760px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font: 400 14px/20px var(--font-text); letter-spacing: -.3px; color: var(--content-high); }
+
+  header { background: var(--content-high); color: #fff; padding: 22mm 18mm 12mm; }
+  header h1 { margin: 0 0 6px; font: 400 34px/40px var(--font-text); letter-spacing: -.8px; }
+  header p { margin: 0; font: 400 15px/22px var(--font-text); color: rgba(255,255,255,.72); }
+
+  main { padding: 0; }
+  .intro { margin: 0 0 10mm; font-size: 15px; line-height: 23px; color: var(--content-mid); max-width: 150mm; }
+
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  thead th {
+    background: var(--surface-blue2); color: var(--content-high); text-align: left;
+    font: 500 12px/16px var(--font-text); letter-spacing: -.2px; padding: 11px 14px; vertical-align: bottom;
+  }
+  thead th:first-child { border-top-left-radius: 8px; }
+  thead th:last-child { border-top-right-radius: 8px; }
+  tbody td { padding: 15px 14px; border-bottom: 1px solid var(--stroke-low); vertical-align: middle; font-size: 15px; }
+  tbody tr:last-child td { border-bottom: 1px solid var(--stroke-low); }
+
+  .size {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 32px; padding: 0 12px;
+    border-radius: 99px; background: var(--semantic-primary); color: #fff; font: 500 15px/1 var(--font-text); letter-spacing: 0;
+  }
+  .pts { font: 400 26px/1 var(--font-text); letter-spacing: -.8px; }
+  .pts small { font: 400 12px/1 var(--font-text); color: var(--content-mid); letter-spacing: -.2px; margin-left: 4px; }
+  .ref { color: var(--content-mid); }
+  .bar { height: 10px; background: rgba(19,29,52,.07); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--semantic-primary); border-radius: 99px; }
+
+  .notes { margin: 9mm 0 0; padding: 14px 16px; background: #f6f8fb; border-radius: 8px; font-size: 12.5px; line-height: 19px; color: var(--content-mid); }
+  .notes p { margin: 0 0 6px; }
+  .notes p:last-child { margin: 0; }
+  .notes b { color: var(--content-high); font-weight: 500; }
+
+  footer { position: absolute; left: 18mm; right: 18mm; bottom: 12mm; display: flex; justify-content: space-between;
+           font-size: 11px; color: var(--content-low); border-top: 1px solid var(--stroke-low); padding-top: 8px; }
+</style>
+</head>
+<body><div id="marco" style="padding:28px">
+
+
+<main>
+  
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:12%">Tamaño</th>
+        <th style="width:23%">Puntos de esfuerzo</th>
+        <th style="width:21%">Sprints estimados</th>
+        <th style="width:20%">Tipo de tarea<br>(referencia)</th>
+        <th style="width:24%">Peso relativo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="size">XS</span></td><td><span class="pts">1</span></td><td>½ día</td><td class="ref">Tarea express</td><td><div class="bar"><i style="width:3.125%"></i></div></td></tr>
+      <tr><td><span class="size">S</span></td><td><span class="pts">2</span></td><td>1 día máx.</td><td class="ref">Tarea express</td><td><div class="bar"><i style="width:6.25%"></i></div></td></tr>
+      <tr><td><span class="size">M</span></td><td><span class="pts">8</span></td><td>&lt; ½ sprint</td><td class="ref">Evolutivo</td><td><div class="bar"><i style="width:25%"></i></div></td></tr>
+      <tr><td><span class="size">L</span></td><td><span class="pts">16</span></td><td>1 sprint</td><td class="ref">Tarea S</td><td><div class="bar"><i style="width:50%"></i></div></td></tr>
+      <tr><td><span class="size">XL</span></td><td><span class="pts">32</span></td><td>2–4 sprints</td><td class="ref">Tarea M</td><td><div class="bar"><i style="width:100%"></i></div></td></tr>
+    </tbody>
+  </table>
+
+  </main>
+
+
+</div></body>
+</html>

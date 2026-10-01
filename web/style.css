@@ -240,7 +240,7 @@ tr.dim td { color: var(--content-low); }
 .area-num small { color: var(--content-mid); }
 .seg { display: flex; gap: var(--size-xs); height: 26px; }
 .seg span {
-  display: flex; align-items: center; justify-content: center; min-width: 30px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; min-width: 4px; overflow: hidden; white-space: nowrap;
   color: var(--content-oncolor-high); border-radius: var(--size-1);
 }
 

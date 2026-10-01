@@ -1,16 +1,34 @@
 // Dashboard del roadmap (solo lectura).
-// Esfuerzo: small = 1 pt, medium = 2, large = 3. TBD e "Incluido" no computan.
-const PTS = { small: 1, medium: 2, large: 3 };
-const SIZE_LABEL = { large: 'L', medium: 'M', small: 'S' };
+// Escala de tamaños, en puntos de esfuerzo: XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32.
+// TBD e «Incluido» no puntúan. Debe coincidir con SCALE en apps-script/Code.gs.
+const PTS = { XS: 1, S: 2, M: 8, L: 16, XL: 32 };
+const SIZES = Object.keys(PTS);                       // de menor a mayor
+const SIZE_ORDER = [...SIZES, 'TBD', 'Incluido'];     // orden de los filtros y de los desplegables
+// Nombres anteriores de los tamaños: se leen como S / M / L hasta que la hoja se migre (setupSheet en Code.gs).
+const SIZE_ALIASES = { small: 'S', medium: 'M', large: 'L' };
+
+// Devuelve el tamaño en su forma canónica (XS, S, M, L, XL, TBD, Incluido); lo desconocido se deja como llega.
+function normSize(v) {
+  const s = String(v == null ? '' : v).trim();
+  const low = s.toLowerCase();
+  if (SIZE_ALIASES[low]) return SIZE_ALIASES[low];
+  const up = s.toUpperCase();
+  if (PTS[up]) return up;
+  if (low === 'tbd') return 'TBD';
+  if (low === 'incluido') return 'Incluido';
+  return s;
+}
+// Copia de las tareas con el tamaño normalizado (también para datos guardados en la caché con nombres antiguos).
+const prepare = (tasks) => tasks.map((t) => ({ ...t, tamano: normSize(t.tamano) }));
 const AREAS = ['Producto', 'Diseño'];
 // Colores de las áreas tomados de los tokens CSS: Producto = semantic-primary, Diseño = content-high.
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const areaColor = (a) => css(a === 'Producto' ? '--semantic-primary' : '--content-high');
-// Tono por tamaño dentro de cada área (L más oscuro).
-const SHADE = { large: 1, medium: 0.7, small: 0.42 };
+// Tono por tamaño dentro de cada área (XL más oscuro).
+const SHADE = { XL: 1, L: 0.82, M: 0.64, S: 0.48, XS: 0.34 };
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const pts = (t) => PTS[t.tamano] || 0;
+const pts = (t) => PTS[normSize(t.tamano)] || 0;
 const counted = (t) => pts(t) > 0;
 // Clase CSS a partir del estado: «En curso» -> en-curso.
 const slug = (s) => String(s).toLowerCase().replace(/[^a-záéíóúñ0-9]+/g, '-');
@@ -24,7 +42,7 @@ function summarize(tasks) {
     sum.area[a] = {
       n: r.length,
       pts: r.reduce((s, t) => s + pts(t), 0),
-      size: Object.fromEntries(Object.keys(PTS).map((k) => [k, r.filter((t) => t.tamano === k).length])),
+      size: Object.fromEntries(SIZES.map((k) => [k, r.filter((t) => normSize(t.tamano) === k).length])),
     };
   }
   return sum;
@@ -32,16 +50,20 @@ function summarize(tasks) {
 
 const projects = (tasks) => [...new Set(tasks.map((t) => t.proyecto).filter(Boolean))];
 
+// «1XL · 2L · 4M»: tareas por tamaño, de mayor a menor.
 function sizeText(size) {
-  return ['large', 'medium', 'small'].filter((k) => size[k]).map((k) => `${size[k]}${SIZE_LABEL[k]}`).join(' · ') || '–';
+  return [...SIZES].reverse().filter((k) => size[k]).map((k) => `${size[k]}${k}`).join(' · ') || '–';
 }
 
+// Barra por área: un tramo por tamaño, de ancho proporcional a sus puntos. El texto solo se escribe en los tramos
+// anchos (≥ 34 % de la barra); en los estrechos queda el título al pasar el ratón y el desglose de la derecha.
 function segBar(area, size, maxPts) {
-  const segs = ['large', 'medium', 'small']
+  const segs = [...SIZES].reverse()
     .filter((k) => size[k])
     .map((k) => {
-      const w = ((size[k] * PTS[k]) / maxPts) * 100;
-      return `<span style="width:${w}%;background:${areaColor(area)};opacity:${SHADE[k]}" title="${size[k]} ${k}">${size[k]}${SIZE_LABEL[k]}</span>`;
+      const points = size[k] * PTS[k];
+      const share = points / maxPts;
+      return `<span style="width:${share * 100}%;background:${areaColor(area)};opacity:${SHADE[k]}" title="${size[k]} × ${k} · ${points} pts">${share >= 0.34 ? size[k] + k : ''}</span>`;
     })
     .join('');
   return `<div class="seg">${segs}</div>`;
@@ -83,7 +105,7 @@ const TEMPLATE = (internal) => `
   <p id="err" class="msg err" hidden></p>
   <p class="note" id="direct" hidden></p>
   <p class="note" id="status" role="status" hidden></p>
-  <p class="note">Esfuerzo: small = 1 pt · medium = 2 pts · large = 3 pts. No se cuentan las tareas TBD ni «Todo lo pasado de Producto».</p>
+  <p class="note">Puntos de esfuerzo por tamaño: XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. No se cuentan las tareas TBD ni «Todo lo pasado de Producto».</p>
   <div class="filters">
     <div><label for="f-proyecto">Proyecto</label><select id="f-proyecto"></select></div>
     <div><label for="f-area">Área</label><select id="f-area"></select></div>
@@ -126,7 +148,7 @@ function taskRow(t, { statusOptions = null, disabled = false } = {}) {
       '</select>'
     : t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–';
   return `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${dot}"></span>${esc(t.area)}</td>` +
-    `<td>${estado}</td><td>${esc(t.iniciativa)}</td><td>${esc(t.tamano)}</td>` +
+    `<td>${estado}</td><td>${esc(t.iniciativa)}</td><td>${esc(normSize(t.tamano))}</td>` +
     `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`;
 }
 
@@ -142,7 +164,7 @@ const hhmm = (t) => new Date(t).toLocaleTimeString('es-ES', { hour: '2-digit', m
 
 // Devuelve { setData(tasks) } para refrescar los datos sin perder los filtros elegidos.
 function mount(root, initial, { internal = false } = {}) {
-  let all = initial;
+  let all = prepare(initial);
   root.innerHTML = TEMPLATE(internal);
   const $ = (id) => document.getElementById(id);
   // Gráficos con la tipografía y los colores del Design System (low/xs, content-mid, stroke-low).
@@ -162,6 +184,7 @@ function mount(root, initial, { internal = false } = {}) {
     for (const [id, key] of FILTERS) {
       const prev = $(id).value;
       const vals = [...new Set(all.map((t) => t[key]).filter(Boolean))];
+      if (key === 'tamano') vals.sort((a, b) => SIZE_ORDER.indexOf(a) - SIZE_ORDER.indexOf(b)); // XS … XL, TBD, Incluido
       $(id).innerHTML = '<option value="">Todos</option>' + vals.map((v) => `<option>${esc(v)}</option>`).join('');
       if (vals.includes(prev)) $(id).value = prev;
       $(id).onchange = update;
@@ -192,7 +215,7 @@ function mount(root, initial, { internal = false } = {}) {
     const estados = [...new Set(tasks.map((t) => t.estado || 'Sin estado'))];
     const count = (pred) => tasks.filter((t) => counted(t) && pred(t)).length;
     if (hasEstado) stacked('c-estado', estados, Object.fromEntries(AREAS.map((a) => [a, estados.map((e) => count((t) => (t.estado || 'Sin estado') === e && t.area === a))])));
-    const sizes = Object.keys(PTS);
+    const sizes = SIZES;
     stacked('c-tamano', sizes, Object.fromEntries(AREAS.map((a) => [a, sizes.map((z) => count((t) => t.tamano === z && t.area === a))])));
 
     $('rows').innerHTML = tasks.map((t) => taskRow(t)).join('');
@@ -201,7 +224,7 @@ function mount(root, initial, { internal = false } = {}) {
   update();
   return {
     setData(next) {
-      all = next;
+      all = prepare(next);
       buildFilters();
       update();
     },

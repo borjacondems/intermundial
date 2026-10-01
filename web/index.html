@@ -62,7 +62,7 @@
           <div><label for="proyecto">Proyecto *</label><select id="proyecto" required></select></div>
           <div><label for="area">Área</label><select id="area"></select></div>
           <div><label for="estado">Estado</label><select id="estado"></select></div>
-          <div class="full"><label for="tamano">Tamaño (small = 1 pt · medium = 2 · large = 3)</label><select id="tamano"></select></div>
+          <div class="full"><label for="tamano">Tamaño *</label><select id="tamano" required></select></div>
           <div class="full"><label for="nota">Nota</label><textarea id="nota" rows="3" maxlength="1900"></textarea></div>
           <div class="full"><button id="submit" type="submit">Guardar tarea</button>
             <div class="msg" id="msg" role="status"></div></div>
@@ -79,13 +79,17 @@
 
     const PROYECTOS = ['Tienda online', 'Safer', 'App/AC'];
     const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
-    const TAMANOS = ['small', 'medium', 'large', 'TBD', 'Incluido'];
     const $ = (id) => document.getElementById(id);
     const fill = (id, vals) => { $(id).innerHTML = vals.map((v) => `<option>${v}</option>`).join(''); };
     fill('proyecto', PROYECTOS);
     $('proyecto').insertAdjacentHTML('afterbegin', '<option value="">Selecciona un proyecto</option>');
     $('proyecto').value = '';
-    fill('area', AREAS); fill('estado', ESTADOS); fill('tamano', TAMANOS);
+    fill('area', AREAS); fill('estado', ESTADOS);
+    // Tamaño: la escala sale de PTS (dashboard.js); cada opción muestra sus puntos de esfuerzo.
+    $('tamano').innerHTML = '<option value="">Selecciona un tamaño</option>' +
+      SIZES.map((k) => `<option value="${k}">${k} · ${PTS[k]} ${PTS[k] === 1 ? 'punto' : 'puntos'}</option>`).join('') +
+      '<option value="TBD">TBD · sin puntos</option><option value="Incluido">Incluido · sin puntos</option>';
+    $('tamano').value = '';
     $('estado').insertAdjacentHTML('afterbegin', '<option value="">Sin estado</option>');
     $('estado').value = '';
 
@@ -201,7 +205,7 @@
     });
 
     function renderTable(tasks) {
-      allTasks = tasks;
+      allTasks = prepare(tasks);
       const note = describeSource(tasks.length);
       $('source').textContent = note;
       $('source').hidden = !note;

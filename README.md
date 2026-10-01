@@ -17,7 +17,8 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
 | Tarea | sí | texto. La columna también puede llamarse «Iniciativa» (nombre anterior); se acepta cualquiera de los dos |
 | Proyecto | sí | texto libre en la hoja. El formulario ofrece una lista fija (`PROYECTOS` en `web/index.html`: Tienda online, Safer, App/AC); para añadir un proyecto, añádelo a esa lista |
 | Área | sí | `Producto` o `Diseño` |
-| Tamaño | sí | `small`, `medium`, `large`, `TBD`, `Incluido` |
+| Tamaño | sí | `XS`, `S`, `M`, `L`, `XL` (puntos de esfuerzo: 1, 2, 8, 16, 32), `TBD` o `Incluido` (sin puntos). Los nombres antiguos `small` / `medium` / `large` se leen como S / M / L |
+| Puntos | no | La crea `setupSheet` (fórmula con los puntos de cada tamaño). La web no la lee: calcula los puntos con su propia escala |
 | Estado | no | `En curso`, `Hecho`, `Bloqueado`. Si toda la columna está vacía, el dashboard oculta el filtro y el gráfico de estado |
 | Cliente | no | Si no existe, todas las filas se consideran del único cliente |
 | Nota, Creada | no | texto |
@@ -60,8 +61,16 @@ Tras abrirlo una vez con el enlace, el navegador recuerda el acceso y `dashboard
 
 ## Modelo de datos
 Tarea · Cliente · Proyecto · Área (Producto/Diseño) · Estado (En curso/Hecho/Bloqueado) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
-Esfuerzo: small = 1 pt, medium = 2, large = 3. `TBD` e `Incluido` («Todo lo pasado de Producto») no computan.
-Con los datos actuales de la hoja: 36 tareas y 63 pts (el PDF daba 35 y 61: en la hoja «Reembolso automático» es `medium` en lugar de TBD).
+Esfuerzo (puntos): XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. `TBD` e `Incluido` («Todo lo pasado de Producto») no puntúan. La escala está en dos sitios que deben coincidir: `PTS` en `web/js/dashboard.js` y `SCALE` en `apps-script/Code.gs`.
+Con los datos actuales de la hoja y la escala nueva (los `small / medium / large` actuales se leen como S / M / L): 36 tareas y 248 pts (Producto 144, Diseño 104).
+
+## Preparar la hoja con la escala de tamaños (una sola vez)
+Tras actualizar el Apps Script, ejecuta `setupSheet` desde el editor (selecciona la función `setupSheet` en la barra superior y pulsa **Ejecutar**; la primera vez pide autorizar). Se puede repetir sin problema. Hace tres cosas en la pestaña `roadmap`:
+1. **Migra** los tamaños antiguos de la columna Tamaño: `small` → S, `medium` → M, `large` → L (lo demás no se toca; lo que no reconoce lo lista en el registro).
+2. Pone un **desplegable** en esa columna con XS, S, M, L, XL, TBD e Incluido, y no admite otros valores.
+3. Crea la columna **Puntos** (si no existe) con la fórmula que convierte cada tamaño en sus puntos; las tareas nuevas que se guardan desde la web también la llevan.
+
+Hasta que lo ejecutes, la web ya muestra la escala nueva (lee los nombres antiguos como S / M / L), pero la hoja seguirá con `small / medium / large`.
 
 ## Ver el dashboard sin desplegar
 Mientras `web/js/config.js` tenga el marcador `TU_ID_DE_DESPLIEGUE`, las páginas leen la hoja directamente en modo **solo lectura** (requiere servirlas con `npx serve web`: Chrome no permite esa lectura desde `file://`). Guardar tareas y las claves solo funcionan con el Apps Script desplegado.
