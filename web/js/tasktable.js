@@ -7,8 +7,9 @@ const TaskTable = {
   //   rowOptions: opciones de taskRow; con { statusOptions } el estado es un selector editable
   //   onChange:   ({ total, visible, shown }) => void, tras cada pintado
   //   pageSize:   filas por página (20 por defecto)
+  //   emptyText:  texto cuando no hay tareas que mostrar
   // Devuelve { setTasks(tareas, { keepPage }), tasks(), paint() }.
-  init(root, { projects = [], rowOptions = {}, onChange = () => {}, pageSize = 20 } = {}) {
+  init(root, { projects = [], rowOptions = {}, onChange = () => {}, pageSize = 20, emptyText = 'Aún no hay tareas.' } = {}) {
     root.innerHTML = `
       <div class="filterbar">
         <div class="chips" id="chips" role="group" aria-label="Filtrar por proyecto"></div>
@@ -115,7 +116,7 @@ const TaskTable = {
       const shownRows = printing ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize);
       $('rows').innerHTML = shownRows.length
         ? shownRows.map((t) => taskRow(t, rowOptions)).join('')
-        : `<tr><td colspan="7" class="empty">${all.length ? 'Ninguna tarea coincide con el filtro.' : 'Aún no hay tareas.'}</td></tr>`;
+        : `<tr><td colspan="7" class="empty">${all.length ? 'Ninguna tarea coincide con el filtro.' : emptyText}</td></tr>`;
       // Contador: las filas que se ven en pantalla sobre el total de tareas.
       $('showing').textContent = all.length
         ? `Mostrando ${shownRows.length} de ${all.length} ${all.length === 1 ? 'tarea' : 'tareas'}`

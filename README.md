@@ -21,7 +21,9 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
 | Puntos | no | La crea `setupSheet` (fórmula con los puntos de cada tamaño). La web no la lee: calcula los puntos con su propia escala |
 | Estado | no | `En curso`, `Hecho`, `Bloqueado`. Si toda la columna está vacía, el dashboard oculta el filtro y el gráfico de estado |
 | Cliente | no | Si no existe, todas las filas se consideran del único cliente |
-| Nota, Creada | no | texto |
+| Creada | no | Fecha de alta; la rellena sola el Apps Script al guardar una tarea |
+| Fecha | no | Fecha de la tarea para el selector de periodo del dashboard. Si la columna no existe o la fila la tiene vacía, se usa **Creada**. Formatos admitidos: `AAAA-MM-DD`, `AAAA-MM`, ISO con hora y `DD/MM/AAAA` |
+| Nota | no | texto |
 
 ## 2. Apps Script (backend)
 1. Ve a https://script.new, pega [apps-script/Code.gs](apps-script/Code.gs) y guarda. **Hazlo con una cuenta que tenga acceso de edición a la hoja.**
@@ -49,7 +51,7 @@ Son dos páginas independientes, cada una con su propia credencial y sin enlaces
 | Usuario | Página | Credencial |
 |---|---|---|
 | Añade tareas | `index.html` | `TEAM_KEY` (la teclea una vez; queda guardada en su navegador). En la tabla, el **estado** de cada tarea se cambia desde su selector y el cambio se guarda en la hoja (columna Estado; requiere el Apps Script actualizado a la versión `update-1` o posterior). Tiene dos pestañas: **Tareas** (tabla con las filas de la hoja, con etiquetas para filtrar por proyecto y un contador de las que se están viendo) y **Nueva tarea** (formulario) |
-| Consulta el dashboard | `dashboard.html` | clave de `CLIENT_KEYS`, dentro del enlace. Incluye la misma tabla de tareas que el formulario (etiquetas por proyecto y contador de las visibles) pero de solo lectura: el estado se ve como etiqueta y no se puede cambiar |
+| Consulta el dashboard | `dashboard.html` | clave de `CLIENT_KEYS`, dentro del enlace. Un selector **Desde / Hasta** (de mes a mes) acota todo lo que se ve: KPIs, tarjetas, gráficos y tabla (más el filtro de Estado, si la hoja lo usa). Las tareas sin fecha se cuentan siempre. Al imprimir, una línea indica el periodo elegido. Incluye la misma tabla de tareas que el formulario (etiquetas por proyecto y contador de las visibles) pero de solo lectura: el estado se ve como etiqueta y no se puede cambiar |
 | Administrador | las dos | `ADMIN_KEY`: se teclea en el campo de clave de cualquiera de las dos páginas |
 
 `ADMIN_KEY` permite añadir tareas y ver el dashboard de cualquier cliente (o de todos a la vez). Las claves de equipo y de cliente no la sustituyen: la de equipo no abre el dashboard y la de cliente solo abre el suyo.

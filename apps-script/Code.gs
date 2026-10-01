@@ -8,13 +8,15 @@
 //
 // Las columnas se localizan por el nombre de la cabecera, en cualquier orden.
 // Obligatorias: Tarea (o «Iniciativa», nombre anterior de esa columna), Proyecto, Área, Tamaño.
-// Opcionales: Cliente, Estado, Nota, Creada, Puntos (la crea setupSheet).
+// Opcionales: Cliente, Estado, Nota, Creada, Puntos (la crea setupSheet) y Fecha.
+// Fecha del dashboard (selector de periodo por meses): se usa la columna «Fecha» si existe y, si la fila la tiene
+// vacía o no existe la columna, la columna «Creada» (que se rellena sola al guardar una tarea).
 //
 // Escala de tamaños (puntos de esfuerzo): XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. TBD e «Incluido» no puntúan.
 // Para preparar la hoja con esta escala, ejecuta UNA vez la función setupSheet desde el editor.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'escala-1';
+const VERSION = 'fechas-1';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
@@ -118,6 +120,20 @@ function listTasks_(client) {
   const get = (r, h) => (idx[h] === undefined ? '' : String(r[idx[h]] == null ? '' : r[idx[h]]).trim());
   // Sin columna Cliente, todas las filas pertenecen al único cliente de la hoja.
   const filterByClient = client && idx['Cliente'] !== undefined;
+  // Fecha de la tarea como texto (las celdas con formato de fecha llegan como Date).
+  const dateOf = (r) => {
+    for (const h of ['Fecha', 'Creada']) {
+      if (idx[h] === undefined) continue;
+      const v = r[idx[h]];
+      if (v instanceof Date) {
+        if (!isNaN(v.getTime())) return v.toISOString();
+        continue;
+      }
+      const s = String(v == null ? '' : v).trim();
+      if (s) return s;
+    }
+    return '';
+  };
   return values
     .map((r, i) => ({
       id: String(i + 2), // nº de fila en la hoja
@@ -128,6 +144,7 @@ function listTasks_(client) {
       estado: get(r, 'Estado'),
       tamano: get(r, 'Tamaño'),
       nota: get(r, 'Nota'),
+      fecha: dateOf(r),
     }))
     .filter((t) => t.iniciativa && (!filterByClient || t.cliente === client));
 }

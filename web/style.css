@@ -181,6 +181,7 @@ select {
 }
 .filters { display: flex; gap: var(--size-4); flex-wrap: wrap; margin-bottom: var(--size-4); }
 .filters[hidden] { display: none; }
+.print-only { display: none; }
 .filters > div { min-width: 150px; flex: 0 1 240px; }
 
 /* ---- Botones ---- */
@@ -356,6 +357,7 @@ button.page:focus-visible { outline: 2px solid var(--semantic-primary); outline-
   form.task { grid-template-columns: 1fr; }
 }
 @media print {
+  .print-only { display: block; margin: 0 0 var(--size-4); color: var(--content-mid); }
   header.top { background: none; color: var(--content-high); padding-left: 0; }
   header.top h1 { color: var(--content-high); }
   header.top nav, .filters, .noprint, .loading, .chips, .linkbtn, .pager { display: none; }

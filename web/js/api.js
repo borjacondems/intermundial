@@ -140,6 +140,7 @@ async function readSheet(client) {
     .map((r, i) => ({
       id: String(i + 2), iniciativa: get(r, titleCol), cliente: get(r, 'Cliente'), proyecto: get(r, 'Proyecto'),
       area: get(r, 'Área'), estado: get(r, 'Estado'), tamano: get(r, 'Tamaño'), nota: get(r, 'Nota'),
+      fecha: get(r, 'Fecha') || get(r, 'Creada'), // «Fecha» si la fila la tiene; si no, «Creada»
     }))
     .filter((t) => t.iniciativa && (!byClient || t.cliente === client));
 }

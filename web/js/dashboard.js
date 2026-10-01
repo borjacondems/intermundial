@@ -31,6 +31,7 @@ const pts = (t) => PTS[normSize(t.tamano)] || 0;
 const counted = (t) => pts(t) > 0;
 // Clase CSS a partir del estado: «En curso» -> en-curso.
 const slug = (s) => String(s).toLowerCase().replace(/[^a-záéíóúñ0-9]+/g, '-');
+const nTareas = (n) => `${n} ${n === 1 ? 'tarea' : 'tareas'}`;
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 function summarize(tasks) {
@@ -45,6 +46,38 @@ function summarize(tasks) {
     };
   }
   return sum;
+}
+
+// ---- Periodos por meses ----
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const ymKey = (y, m) => (m >= 1 && m <= 12 && y >= 1900 ? `${y}-${String(m).padStart(2, '0')}` : '');
+const monthLabel = (k) => `${MESES[+k.slice(5) - 1]} ${k.slice(0, 4)}`;
+
+// Mes («AAAA-MM») de una fecha escrita como texto; '' si no se reconoce. Admite ISO (con hora, en horario local),
+// AAAA-MM-DD, AAAA-MM y DD/MM/AAAA (día primero, como en una hoja en español; si el segundo número pasa de 12
+// se entiende MM/DD/AAAA).
+function monthKey(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  let m;
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? '' : ymKey(d.getFullYear(), d.getMonth() + 1);
+  }
+  if ((m = s.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?(?!\d)/))) return ymKey(+m[1], +m[2]);
+  if ((m = s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})/))) return ymKey(+m[3], +m[2] > 12 ? +m[1] : +m[2]);
+  return '';
+}
+
+// Meses consecutivos entre dos claves «AAAA-MM» (ambas incluidas).
+function monthsBetween(a, b) {
+  const out = [];
+  let y = +a.slice(0, 4), m = +a.slice(5);
+  while (ymKey(y, m) <= b && out.length < 600) {
+    out.push(ymKey(y, m));
+    if (++m > 12) { m = 1; y++; }
+  }
+  return out;
 }
 
 const projects = (tasks) => [...new Set(tasks.map((t) => t.proyecto).filter(Boolean))];
@@ -74,7 +107,7 @@ function projectCard(name, tasks, maxPts) {
     const x = s.area[a];
     return `<div class="area-row"><div class="area-name" style="color:${areaColor(a)}">${a}</div>
       ${segBar(a, x.size, maxPts)}
-      <div class="area-num"><b>${x.pts} pts</b><small>${x.n} tareas · ${sizeText(x.size)}</small></div></div>`;
+      <div class="area-num"><b>${x.pts} pts</b><small>${nTareas(x.n)} · ${sizeText(x.size)}</small></div></div>`;
   };
   return `<div class="card proj"><h2>${esc(name)}</h2>
     <div class="split"><span>Tareas · Producto ${pct(s.area.Producto.n, s.n)}% · Diseño ${pct(s.area.Diseño.n, s.n)}%</span>
@@ -104,8 +137,11 @@ const TEMPLATE = (internal) => `
   <p id="err" class="msg err" hidden></p>
   <p class="note" id="direct" hidden></p>
   <p class="note" id="status" role="status" hidden></p>
+  <p class="print-only" id="filtros-impresos"></p>
   <p class="note">Puntos de esfuerzo por tamaño: XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. No se cuentan las tareas TBD ni «Todo lo pasado de Producto».</p>
   <div class="filters" id="filters">
+    <div id="w-desde"><label for="f-desde">Desde</label><select id="f-desde"></select></div>
+    <div id="w-hasta"><label for="f-hasta">Hasta</label><select id="f-hasta"></select></div>
     <div id="w-estado"><label for="f-estado">Estado</label><select id="f-estado"></select></div>
   </div>
   <div class="grid kpis">
@@ -163,7 +199,7 @@ function mount(root, initial, { internal = false } = {}) {
   let all = prepare(initial);
   root.innerHTML = TEMPLATE(internal);
   // Tabla de tareas con etiquetas por proyecto y contador. Recibe las tareas que dejan pasar los filtros de arriba.
-  const detail = TaskTable.init(root.querySelector('#detail'), { projects: () => projects(all) });
+  const detail = TaskTable.init(root.querySelector('#detail'), { projects: () => projects(all), emptyText: 'No hay tareas con los filtros elegidos.' });
   const $ = (id) => document.getElementById(id);
   // Gráficos con la tipografía y los colores del Design System (low/xs, content-mid, stroke-low).
   Chart.defaults.font.family = css('--font-text');
@@ -173,12 +209,46 @@ function mount(root, initial, { internal = false } = {}) {
   $('direct').hidden = !directMode;
   $('direct').textContent = dataNote;
 
+  // Periodo: selectores «Desde» y «Hasta» (de mes a mes). Mientras no se toquen siguen el rango completo de los datos,
+  // así un mes nuevo entra solo; si se han tocado, la selección se conserva mientras siga siendo válida.
+  let touched = false;
+  const periodo = () => ({ desde: $('f-desde').value, hasta: $('f-hasta').value });
+  // Una tarea sin fecha reconocible no se puede situar en el tiempo: se cuenta siempre.
+  const enPeriodo = (t) => {
+    const { desde, hasta } = periodo();
+    const k = monthKey(t.fecha);
+    return !k || !desde || (k >= desde && k <= hasta);
+  };
+
+  function buildPeriod() {
+    const keys = all.map((t) => monthKey(t.fecha)).filter(Boolean).sort();
+    const hasDates = keys.length > 0;
+    $('w-desde').hidden = $('w-hasta').hidden = !hasDates;
+    if (!hasDates) { $('f-desde').innerHTML = $('f-hasta').innerHTML = ''; return false; }
+    const months = monthsBetween(keys[0], keys[keys.length - 1]);
+    const options = months.map((k) => `<option value="${k}">${monthLabel(k)}</option>`).join('');
+    const prev = periodo();
+    $('f-desde').innerHTML = $('f-hasta').innerHTML = options;
+    let desde = months[0], hasta = months[months.length - 1];
+    if (touched) {
+      if (months.includes(prev.desde)) desde = prev.desde;
+      if (months.includes(prev.hasta)) hasta = prev.hasta;
+      if (desde > hasta) { desde = months[0]; hasta = months[months.length - 1]; }
+    }
+    $('f-desde').value = desde;
+    $('f-hasta').value = hasta;
+    $('f-desde').onchange = () => { touched = true; if ($('f-desde').value > $('f-hasta').value) $('f-hasta').value = $('f-desde').value; update(true); };
+    $('f-hasta').onchange = () => { touched = true; if ($('f-hasta').value < $('f-desde').value) $('f-desde').value = $('f-hasta').value; update(true); };
+    return true;
+  }
+
   // Filtros a partir de los datos actuales, conservando la selección si sigue siendo válida.
   function buildFilters() {
+    const hasDates = buildPeriod();
     // Si la hoja no rellena Estado, se ocultan su filtro y su gráfico.
     const hasEstado = all.some((t) => t.estado);
     $('w-estado').hidden = !hasEstado;
-    $('filters').hidden = !hasEstado; // sin estados no queda ningún filtro: se oculta también la barra
+    $('filters').hidden = !hasEstado && !hasDates; // sin ningún filtro disponible se oculta también la barra
     $('card-estado').hidden = !hasEstado;
     for (const [id, key] of FILTERS) {
       const prev = $(id).value;
@@ -192,14 +262,21 @@ function mount(root, initial, { internal = false } = {}) {
   function update(resetPage = false) {
     const hasEstado = all.some((t) => t.estado);
     const f = Object.fromEntries(FILTERS.map(([id, key]) => [key, $(id).value]));
-    const tasks = all.filter((t) => Object.entries(f).every(([k, v]) => !v || t[k] === v));
+    const tasks = all.filter((t) => Object.entries(f).every(([k, v]) => !v || t[k] === v) && enPeriodo(t));
     const s = summarize(tasks);
+
+    // Al imprimir la barra de filtros no sale: esta línea (visible solo en papel/PDF) indica qué periodo y estado se ven.
+    const { desde, hasta } = periodo();
+    const partes = [];
+    if (desde) partes.push(`Periodo: ${monthLabel(desde)}${hasta !== desde ? ' – ' + monthLabel(hasta) : ''}`);
+    if (f.estado) partes.push(`Estado: ${f.estado}`);
+    $('filtros-impresos').textContent = partes.join(' · ');
 
     $('k-n').textContent = s.n;
     $('k-pts').textContent = s.pts;
     for (const [id, lid, a] of [['k-prod', 'l-prod', 'Producto'], ['k-dis', 'l-dis', 'Diseño']]) {
       $(id).textContent = pct(s.area[a].pts, s.pts) + '%';
-      $(lid).textContent = `${a} · ${s.area[a].pts} pts · ${s.area[a].n} tareas`;
+      $(lid).textContent = `${a} · ${s.area[a].pts} pts · ${nTareas(s.area[a].n)}`;
     }
 
     const names = projects(tasks);
