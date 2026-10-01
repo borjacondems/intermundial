@@ -3,7 +3,6 @@
 // TBD e «Incluido» no puntúan. Debe coincidir con SCALE en apps-script/Code.gs.
 const PTS = { XS: 1, S: 2, M: 8, L: 16, XL: 32 };
 const SIZES = Object.keys(PTS);                       // de menor a mayor
-const SIZE_ORDER = [...SIZES, 'TBD', 'Incluido'];     // orden de los filtros y de los desplegables
 // Nombres anteriores de los tamaños: se leen como S / M / L hasta que la hoja se migre (setupSheet en Code.gs).
 const SIZE_ALIASES = { small: 'S', medium: 'M', large: 'L' };
 
@@ -106,11 +105,8 @@ const TEMPLATE = (internal) => `
   <p class="note" id="direct" hidden></p>
   <p class="note" id="status" role="status" hidden></p>
   <p class="note">Puntos de esfuerzo por tamaño: XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. No se cuentan las tareas TBD ni «Todo lo pasado de Producto».</p>
-  <div class="filters">
-    <div><label for="f-proyecto">Proyecto</label><select id="f-proyecto"></select></div>
-    <div><label for="f-area">Área</label><select id="f-area"></select></div>
+  <div class="filters" id="filters">
     <div id="w-estado"><label for="f-estado">Estado</label><select id="f-estado"></select></div>
-    <div><label for="f-tamano">Tamaño</label><select id="f-tamano"></select></div>
   </div>
   <div class="grid kpis">
     <div class="card kpi"><div class="v" id="k-n">–</div><div class="l">Tareas</div></div>
@@ -129,7 +125,8 @@ const TEMPLATE = (internal) => `
   <h2 class="sec">Detalle de tareas</h2>
   <div id="detail"></div>`;
 
-const FILTERS = [['f-proyecto', 'proyecto'], ['f-area', 'area'], ['f-estado', 'estado'], ['f-tamano', 'tamano']];
+// Filtro global del dashboard: solo el estado (y solo si la hoja lo rellena). Por proyecto se filtra con las etiquetas de la tabla.
+const FILTERS = [['f-estado', 'estado']];
 
 function showError(msg) {
   const el = document.getElementById('err');
@@ -181,11 +178,11 @@ function mount(root, initial, { internal = false } = {}) {
     // Si la hoja no rellena Estado, se ocultan su filtro y su gráfico.
     const hasEstado = all.some((t) => t.estado);
     $('w-estado').hidden = !hasEstado;
+    $('filters').hidden = !hasEstado; // sin estados no queda ningún filtro: se oculta también la barra
     $('card-estado').hidden = !hasEstado;
     for (const [id, key] of FILTERS) {
       const prev = $(id).value;
       const vals = [...new Set(all.map((t) => t[key]).filter(Boolean))];
-      if (key === 'tamano') vals.sort((a, b) => SIZE_ORDER.indexOf(a) - SIZE_ORDER.indexOf(b)); // XS … XL, TBD, Incluido
       $(id).innerHTML = '<option value="">Todos</option>' + vals.map((v) => `<option>${esc(v)}</option>`).join('');
       if (vals.includes(prev)) $(id).value = prev;
       $(id).onchange = () => update(true); // otro filtro: la tabla vuelve a la página 1

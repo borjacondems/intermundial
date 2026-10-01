@@ -180,7 +180,8 @@ select {
   background-repeat: no-repeat; background-position: right var(--size-4) center; background-size: 16px;
 }
 .filters { display: flex; gap: var(--size-4); flex-wrap: wrap; margin-bottom: var(--size-4); }
-.filters > div { min-width: 150px; flex: 1; }
+.filters[hidden] { display: none; }
+.filters > div { min-width: 150px; flex: 0 1 240px; }
 
 /* ---- Botones ---- */
 button {
