@@ -177,5 +177,11 @@ const updateTask = (id, iniciativa, changes) => {
   return call({ action: 'update', key: teamKey.get(), id, iniciativa, changes });
 };
 
+// Borra una fila de la hoja (`iniciativa` sirve al servidor para comprobar que sigue siendo la misma). Nunca se reintenta.
+const deleteTask = (id, iniciativa) => {
+  if (directMode) throw new Error('El backend aún no está desplegado: por ahora la tabla es de solo lectura.');
+  return call({ action: 'delete', key: teamKey.get(), id, iniciativa });
+};
+
 const getClientTasks = (client, key) =>
   directMode ? readSheet(client) : call({ action: 'client', client, key }, { retry: true });

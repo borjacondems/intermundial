@@ -4,25 +4,31 @@
 const TaskTable = {
   // root: elemento donde se monta. Opciones:
   //   projects:   lista de proyectos para las etiquetas, o función (todas las tareas) => lista
+  //   groups:     en vez de projects, grupos de etiquetas [{ key: 'area', label: 'Tipo', values: [...] }]; dentro de un grupo solo hay
+  //               una activa (excluyentes), entre grupos se suman (y). values puede ser una función (todas las tareas) => lista
   //   rowOptions: opciones de taskRow; con { statusOptions } el estado es un selector editable
   //   onChange:   ({ total, visible, shown }) => void, tras cada pintado
   //   pageSize:   filas por página (20 por defecto)
   //   emptyText:  texto cuando no hay tareas que mostrar
+  //   title:      titular opcional (dashboard): barra con titular y contador dentro del recuadro de la tabla
   // Devuelve { setTasks(tareas, { keepPage }), tasks(), paint() }.
-  init(root, { projects = [], rowOptions = {}, onChange = () => {}, pageSize = 20, emptyText = 'Aún no hay tareas.' } = {}) {
-    root.innerHTML = `
-      <div class="filterbar">
-        <div class="chips" id="chips" role="group" aria-label="Filtrar por proyecto"></div>
+  init(root, { projects = [], rowOptions = {}, onChange = () => {}, pageSize = 20, emptyText = 'Aún no hay tareas.', title = '', groups = null } = {}) {
+    // Con titular (dashboard) la barra va dentro del recuadro de la tabla; sin él (formulario), encima y fuera.
+    const bar = `      <div class="filterbar">
+        ${title ? `<h2 class="sec">${title}</h2>` : ''}
+        <div class="chips" id="chips" role="group" aria-label="Filtros"></div>
         <div class="showing">
           <span id="showing" role="status" aria-live="polite"></span>
           <button type="button" class="linkbtn" id="clear" hidden>Quitar filtros</button>
         </div>
-      </div>
-      <section class="card">
+      </div>`;
+    root.innerHTML = `
+${title ? '' : bar}      <section class="card">
+        ${title ? bar : ''}
         <p class="msg err" id="table-msg" role="status" hidden></p>
         <p class="note" id="source" hidden></p>
         <div class="table-wrap">
-          <table class="tasks">
+          <table class="tasks${rowOptions.deletable ? ' deletable' : ''}">
             <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Tarea</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
             <tbody id="rows"></tbody>
           </table>
@@ -35,26 +41,50 @@ const TaskTable = {
     const $ = (id) => root.querySelector('#' + id);
 
     let all = [];
-    let names = [];
-    const selected = new Set(); // etiquetas activas; sin ninguna se ven todas, y se pueden combinar
+    // Etiquetas de filtro agrupadas: por defecto un solo grupo con los proyectos.
+    const getGroups = () => {
+      const g = groups ? (typeof groups === 'function' ? groups(all) : groups)
+        : [{ key: 'proyecto', label: 'proyecto', values: projects }];
+      return g.map((x) => ({ ...x, values: typeof x.values === 'function' ? x.values(all) : x.values }));
+    };
+    let shape = '';
+    const selected = new Map(); // grupo (key) -> etiqueta activa (como mucho una); sin ninguna en un grupo, no filtra por él
+    const isOn = (key, v) => selected.get(key)?.has(v);
+    const anySelected = () => [...selected.values()].some((set) => set.size);
     let page = 1;
     let printing = false;       // al imprimir se muestran todas las filas, no solo la página actual
 
-    // Las etiquetas se reconstruyen solo si cambia la lista de proyectos.
+    // Las etiquetas se reconstruyen solo si cambian los grupos o sus valores.
     function buildChips() {
-      const next = typeof projects === 'function' ? projects(all) : projects;
-      if (next.join('\u0000') === names.join('\u0000')) return;
-      names = next;
-      for (const name of [...selected]) if (!names.includes(name)) selected.delete(name);
-      $('chips').replaceChildren(...names.map((name) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'chip';
-        b.dataset.proyecto = name;
-        b.textContent = name;
-        b.onclick = () => { selected.has(name) ? selected.delete(name) : selected.add(name); page = 1; paint(); };
-        return b;
-      }));
+      const gs = getGroups();
+      const next = JSON.stringify(gs);
+      if (next === shape) return;
+      shape = next;
+      for (const [key, set] of selected) {
+        const g = gs.find((x) => x.key === key);
+        for (const v of [...set]) if (!g || !g.values.includes(v)) set.delete(v);
+      }
+      const nodes = [];
+      gs.forEach((g, i) => {
+        if (i && g.values.length) nodes.push(Object.assign(document.createElement('span'), { className: 'chips-sep', ariaHidden: 'true' }));
+        for (const name of g.values) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'chip';
+          b.dataset.key = g.key;
+          b.dataset.value = name;
+          b.textContent = name;
+          b.onclick = () => {
+            // Excluyentes dentro de cada grupo: elegir una quita la anterior; volver a pulsarla la desactiva.
+            const was = isOn(g.key, name);
+            selected.set(g.key, new Set(was ? [] : [name]));
+            page = 1;
+            paint();
+          };
+          nodes.push(b);
+        }
+      });
+      $('chips').replaceChildren(...nodes);
     }
 
     $('clear').onclick = () => { selected.clear(); page = 1; paint(); };
@@ -110,7 +140,7 @@ const TaskTable = {
 
     // Dibuja la tabla, el contador, el paginador y las etiquetas a partir de todas las tareas y del filtro elegido.
     function paint() {
-      const filtered = selected.size ? all.filter((t) => selected.has(t.proyecto)) : all;
+      const filtered = anySelected() ? all.filter((t) => [...selected].every(([key, set]) => !set.size || set.has(t[key]))) : all;
       const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
       page = Math.min(Math.max(page, 1), pages);                       // si hay menos páginas que antes, se ajusta
       const shownRows = printing ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -121,8 +151,8 @@ const TaskTable = {
       $('showing').textContent = all.length
         ? `Mostrando ${shownRows.length} de ${all.length} ${all.length === 1 ? 'tarea' : 'tareas'}`
         : '';
-      $('clear').hidden = !selected.size;
-      for (const b of $('chips').children) b.setAttribute('aria-pressed', selected.has(b.dataset.proyecto));
+      $('clear').hidden = !anySelected();
+      for (const b of $('chips').querySelectorAll('.chip')) b.setAttribute('aria-pressed', !!isOn(b.dataset.key, b.dataset.value));
       paintPager(pages);
       onChange({ total: all.length, visible: filtered.length, shown: shownRows.length });
     }
@@ -134,7 +164,7 @@ const TaskTable = {
     return {
       // keepPage: false al cambiar de filtros (vuelve a la página 1); true (por defecto) al refrescar datos.
       setTasks(tasks, { keepPage = true } = {}) {
-        all = prepare(tasks);
+        all = newestFirst(prepare(tasks)); // las más nuevas primero, para que se vean al entrar
         if (!keepPage) page = 1;
         buildChips();
         paint();

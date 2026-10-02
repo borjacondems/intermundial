@@ -19,12 +19,12 @@ function normSize(v) {
 }
 // Copia de las tareas con el tamaño normalizado (también para datos guardados en la caché con nombres antiguos).
 const prepare = (tasks) => tasks.map((t) => ({ ...t, tamano: normSize(t.tamano) }));
+// Las tareas nuevas primero: el id es el nº de fila de la hoja y las tareas nuevas se añaden al final, así que va de mayor a menor.
+const newestFirst = (tasks) => [...tasks].sort((a, b) => (+b.id || 0) - (+a.id || 0));
 const AREAS = ['Producto', 'Diseño'];
 // Colores de las áreas tomados de los tokens CSS: Producto = semantic-primary, Diseño = content-high.
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const areaColor = (a) => css(a === 'Producto' ? '--semantic-primary' : '--content-high');
-// Tono por tamaño dentro de cada área (XL más oscuro).
-const SHADE = { XL: 1, L: 0.82, M: 0.64, S: 0.48, XS: 0.34 };
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pts = (t) => PTS[normSize(t.tamano)] || 0;
@@ -82,67 +82,91 @@ function monthsBetween(a, b) {
 
 const projects = (tasks) => [...new Set(tasks.map((t) => t.proyecto).filter(Boolean))];
 
-// «1XL · 2L · 4M»: tareas por tamaño, de mayor a menor.
-function sizeText(size) {
-  return [...SIZES].reverse().filter((k) => size[k]).map((k) => `${size[k]}${k}`).join(' · ') || '–';
-}
-
-// Barra por área: un tramo por tamaño, de ancho proporcional a sus puntos. El texto solo se escribe en los tramos
-// anchos (≥ 34 % de la barra); en los estrechos queda el título al pasar el ratón y el desglose de la derecha.
-function segBar(area, size, maxPts) {
-  const segs = [...SIZES].reverse()
-    .filter((k) => size[k])
-    .map((k) => {
-      const points = size[k] * PTS[k];
-      const share = points / maxPts;
-      return `<span style="width:${share * 100}%;background:${areaColor(area)};opacity:${SHADE[k]}" title="${size[k]} × ${k} · ${points} pts">${share >= 0.34 ? size[k] + k : ''}</span>`;
-    })
-    .join('');
-  return `<div class="seg">${segs}</div>`;
-}
-
-function projectCard(name, tasks, maxPts) {
-  const s = summarize(tasks.filter((t) => t.proyecto === name));
-  const line = (a) => {
-    const x = s.area[a];
-    return `<div class="area-row"><div class="area-name" style="color:${areaColor(a)}">${a}</div>
-      ${segBar(a, x.size, maxPts)}
-      <div class="area-num"><b>${x.pts} pts</b><small>${nTareas(x.n)} · ${sizeText(x.size)}</small></div></div>`;
-  };
-  return `<div class="card proj"><h2>${esc(name)}</h2>
-    <div class="split"><span>Tareas · Producto ${pct(s.area.Producto.n, s.n)}% · Diseño ${pct(s.area.Diseño.n, s.n)}%</span>
-    <span>Esfuerzo · Producto ${pct(s.area.Producto.pts, s.pts)}% · Diseño ${pct(s.area.Diseño.pts, s.pts)}%</span></div>
-    ${AREAS.map(line).join('')}</div>`;
-}
-
 const charts = {};
-function stacked(id, labels, byArea, horizontal) {
+// Gráfico de anillo por tipo de tarea (área: Producto / Diseño), con el total en el centro y la leyenda debajo.
+// unit: «tarea(s)» o «punto(s)».
+function donut(id, values, unit) {
+  const color = (a) => (a === 'Diseño' ? css('--surface-blue2') : areaColor(a)); // Diseño = #E0F0FF (token surface-blue2)
+  const total = values.reduce((a, b) => a + b, 0);
+  const text = (n) => `${n} ${n === 1 ? unit[0] : unit[1]}`;
   charts[id]?.destroy();
   charts[id] = new Chart(document.getElementById(id), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: AREAS.map((a) => ({ label: a, data: byArea[a], backgroundColor: areaColor(a), borderRadius: 3 })),
-    },
-    options: {
-      maintainAspectRatio: false,
-      indexAxis: horizontal ? 'y' : 'x',
-      plugins: { legend: { position: 'bottom' } },
-      scales: { x: { stacked: true, ticks: { precision: 0 } }, y: { stacked: true, ticks: { precision: 0 } } },
+    type: 'doughnut',
+    data: { labels: AREAS, datasets: [{ data: values, backgroundColor: AREAS.map(color), borderColor: css('--surface-default'), borderWidth: 3 }] },
+    options: { maintainAspectRatio: false, cutout: '62%', plugins: {
+        legend: { display: false },
+        // Al pasar el ratón por un tramo: el tipo, su recuento y su porcentaje, en un globo fuera del anillo
+        // (hacia el exterior desde el centro) con la flecha apuntando al tramo.
+        tooltip: {
+          enabled: false,
+          external: ({ chart, tooltip }) => {
+            let el = document.getElementById('donut-tip');
+            if (!el) { el = document.createElement('div'); el.id = 'donut-tip'; el.setAttribute('role', 'tooltip'); document.body.appendChild(el); }
+            if (!tooltip.opacity || !tooltip.dataPoints?.length) { el.classList.remove('on'); return; }
+            const i = tooltip.dataPoints[0].dataIndex;
+            const arc = chart.getDatasetMeta(0).data[i].getProps(['x', 'y', 'startAngle', 'endAngle', 'outerRadius'], true);
+            const ang = (arc.startAngle + arc.endAngle) / 2;
+            const dx = Math.cos(ang), dy = Math.sin(ang);
+            const box = chart.canvas.getBoundingClientRect();
+            const gap = 10; // distancia entre el borde del anillo y la flecha
+            const x = box.left + arc.x + dx * (arc.outerRadius + gap);
+            const y = box.top + arc.y + dy * (arc.outerRadius + gap);
+            // El globo se coloca hacia el lado dominante: a la derecha/izquierda del anillo, o encima/debajo.
+            const side = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'right' : 'left') : (dy >= 0 ? 'bottom' : 'top');
+            el.className = `donut-tip ${side}`;
+            el.innerHTML = `<b><span class="sw" style="background:${color(AREAS[i])}"></span>${AREAS[i]}</b>${text(values[i])} · ${pct(values[i], total)}%`;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.classList.add('on');
+          },
+        },
+      },
     },
   });
+  document.getElementById(id + '-c').innerHTML = `<b>${total}</b><span>${unit[total === 1 ? 0 : 1]}</span>`;
+  document.getElementById(id + '-l').innerHTML = AREAS.map((a, i) =>
+    `<div class="lg"><span class="sw" style="background:${color(a)}"></span><div><b>${a} ${pct(values[i], total)}%</b><small>${text(values[i])}</small></div></div>`).join('');
+}
+
+// ---- Informe PDF: una sección (una página) por proyecto ----
+// Barra proporcional Producto / Diseño con los mismos colores que los anillos.
+function shareBar(values) {
+  const total = values.reduce((a, b) => a + b, 0) || 1;
+  return `<div class="rpt-bar">${AREAS.map((a, i) => `<span style="width:${(values[i] / total) * 100}%;background:${a === 'Diseño' ? css('--surface-blue2') : areaColor(a)}"></span>`).join('')}</div>`;
+}
+
+function reportSection(name, tasks, subtitle) {
+  const s = summarize(tasks);
+  const kpi = (v, l) => `<div class="rpt-kpi"><b>${v}</b><span>${l}</span></div>`;
+  const areaRows = AREAS.map((a) =>
+    `<tr><td>${a}</td><td class="n">${s.area[a].n}</td><td class="n">${s.area[a].pts}</td><td class="n">${pct(s.area[a].pts, s.pts)}%</td></tr>`).join('');
+  const rows = newestFirst(tasks).map((t) =>
+    `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.area)}</td><td>${t.estado ? esc(t.estado) : '–'}</td><td>${esc(t.iniciativa)}</td>` +
+    `<td>${esc(normSize(t.tamano))}</td><td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`).join('');
+  return `<section class="rpt-page">
+    <p class="rpt-sub">Dashboard Tareas${subtitle ? ' · ' + esc(subtitle) : ''}</p>
+    <h2 class="rpt-title">${esc(name)}</h2>
+    <div class="rpt-kpis">${kpi(s.n, 'Tareas')}${kpi(s.pts, 'Puntos de esfuerzo')}${kpi(pct(s.area.Producto.pts, s.pts) + '%', 'Producto')}${kpi(pct(s.area.Diseño.pts, s.pts) + '%', 'Diseño')}</div>
+    <h3>Tareas por tipo</h3>${shareBar(AREAS.map((a) => s.area[a].n))}
+    <h3>Esfuerzo por tipo</h3>${shareBar(AREAS.map((a) => s.area[a].pts))}
+    <table class="rpt-areas"><thead><tr><th>Tipo</th><th class="n">Tareas</th><th class="n">Puntos</th><th class="n">% esfuerzo</th></tr></thead><tbody>${areaRows}</tbody></table>
+    <h3>Detalle de tareas</h3>
+    <table class="rpt-tasks"><thead><tr><th>Área</th><th>Estado</th><th>Tarea</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead><tbody>${rows}</tbody></table>
+  </section>`;
 }
 
 const TEMPLATE = (internal) => `
   <p id="err" class="msg err" hidden></p>
   <p class="note" id="direct" hidden></p>
-  <p class="note" id="status" role="status" hidden></p>
   <p class="print-only" id="filtros-impresos"></p>
-  <p class="note">Puntos de esfuerzo por tamaño: XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. No se cuentan las tareas TBD ni «Todo lo pasado de Producto».</p>
+  <div class="tabs proj-tags" id="proj-tags" role="tablist" aria-label="Proyectos"></div>
   <div class="filters" id="filters">
     <div id="w-desde"><label for="f-desde">Desde</label><select id="f-desde"></select></div>
     <div id="w-hasta"><label for="f-hasta">Hasta</label><select id="f-hasta"></select></div>
-    <div id="w-estado"><label for="f-estado">Estado</label><select id="f-estado"></select></div>
+    <p class="note status" id="status" role="status" hidden></p>
+    <div class="actions">
+      <button type="button" class="ghost reload" id="reload">Recargar</button>
+    </div>
   </div>
   <div class="grid kpis">
     <div class="card kpi"><div class="v" id="k-n">–</div><div class="l">Tareas</div></div>
@@ -150,19 +174,15 @@ const TEMPLATE = (internal) => `
     <div class="card kpi"><div class="v" id="k-prod">–</div><div class="l" id="l-prod">Producto</div></div>
     <div class="card kpi"><div class="v" id="k-dis">–</div><div class="l" id="l-dis">Diseño</div></div>
   </div>
-  <h2 class="sec">Esfuerzo por proyecto</h2>
-  <div class="grid projs" id="projs"></div>
   <div class="grid charts">
-    <div class="card"><h2>Puntos por proyecto</h2><div class="chart-box"><canvas id="c-pts"></canvas></div></div>
-    <div class="card"><h2>Tareas por proyecto</h2><div class="chart-box"><canvas id="c-n"></canvas></div></div>
-    <div class="card" id="card-estado"><h2>Tareas por estado</h2><div class="chart-box"><canvas id="c-estado"></canvas></div></div>
-    <div class="card"><h2>Tareas por tamaño</h2><div class="chart-box"><canvas id="c-tamano"></canvas></div></div>
+    <div class="card"><h2>Tareas</h2><div class="donut"><div class="chart-box"><canvas id="c-pie-n"></canvas><div class="donut-center" id="c-pie-n-c"></div></div><div class="legend" id="c-pie-n-l"></div></div></div>
+    <div class="card"><h2>Esfuerzo</h2><div class="donut"><div class="chart-box"><canvas id="c-pie-pts"></canvas><div class="donut-center" id="c-pie-pts-c"></div></div><div class="legend" id="c-pie-pts-l"></div></div></div>
   </div>
-  <h2 class="sec">Detalle de tareas</h2>
-  <div id="detail"></div>`;
+  <div id="detail" class="detail"></div>
+  <div id="print-report" class="print-report"></div>`;
 
-// Filtro global del dashboard: solo el estado (y solo si la hoja lo rellena). Por proyecto se filtra con las etiquetas de la tabla.
-const FILTERS = [['f-estado', 'estado']];
+// Filtros globales con selector: ninguno (el periodo y el proyecto tienen los suyos). Se conserva la lista por si se añade alguno.
+const FILTERS = [];
 
 function showError(msg) {
   const el = document.getElementById('err');
@@ -172,16 +192,20 @@ function showError(msg) {
 
 // Fila de la tabla de tareas (la usan el dashboard y la pestaña «Tareas» del formulario).
 // Con { statusOptions } el estado es un selector editable (pestaña «Tareas» del equipo); sin él, una etiqueta.
-function taskRow(t, { statusOptions = null, disabled = false } = {}) {
+function taskRow(t, { statusOptions = null, disabled = false, deletable = false } = {}) {
   const dot = AREAS.includes(t.area) ? areaColor(t.area) : css('--content-low');
   const estado = statusOptions
     ? `<select class="status ${t.estado ? slug(t.estado) : 'sin-estado'}" data-id="${esc(t.id)}" aria-label="Estado de «${esc(t.iniciativa)}»"${disabled ? ' disabled' : ''}>` +
       ['', ...statusOptions].map((o) => `<option value="${esc(o)}"${o === t.estado ? ' selected' : ''}>${o ? esc(o) : 'Sin estado'}</option>`).join('') +
       '</select>'
     : t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–';
+  // Botón de borrar (solo en la tabla del equipo): aparece al pasar el ratón por la fila, al final de la última celda.
+  const del = deletable
+    ? `<button type="button" class="row-del" data-id="${esc(t.id)}" aria-label="Borrar «${esc(t.iniciativa)}»" title="Borrar tarea"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></svg></button>`
+    : '';
   return `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${dot}"></span>${esc(t.area)}</td>` +
     `<td>${estado}</td><td>${esc(t.iniciativa)}</td><td>${esc(normSize(t.tamano))}</td>` +
-    `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}</td></tr>`;
+    `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}${del}</td></tr>`;
 }
 
 // Texto de estado bajo el título («Actualizando…», «Datos de las 12:34»).
@@ -195,22 +219,40 @@ function setStatus(text) {
 const hhmm = (t) => new Date(t).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
 // Devuelve { setData(tasks) } para refrescar los datos sin perder los filtros elegidos.
-function mount(root, initial, { internal = false } = {}) {
+function mount(root, initial, { internal = false, onReload = null } = {}) {
   let all = prepare(initial);
   root.innerHTML = TEMPLATE(internal);
   // Tabla de tareas con etiquetas por proyecto y contador. Recibe las tareas que dejan pasar los filtros de arriba.
-  const detail = TaskTable.init(root.querySelector('#detail'), { projects: () => projects(all), emptyText: 'No hay tareas con los filtros elegidos.' });
+  const detail = TaskTable.init(root.querySelector('#detail'), { title: 'Detalle de tareas', groups: [{ key: 'area', values: AREAS }, { key: 'estado', values: ['En curso', 'Bloqueado', 'Hecho'] }], emptyText: 'No hay tareas con los filtros elegidos.' });
   const $ = (id) => document.getElementById(id);
   // Gráficos con la tipografía y los colores del Design System (low/xs, content-mid, stroke-low).
   Chart.defaults.font.family = css('--font-text');
   Chart.defaults.font.size = 12;
   Chart.defaults.color = css('--content-mid');
   Chart.defaults.borderColor = css('--stroke-low');
+  $('reload').hidden = !onReload;
+  $('reload').onclick = () => onReload();
+  // Descargar PDF: se imprime el informe por proyectos (el navegador ofrece «Guardar como PDF»).
+  let report = { base: [], filtros: '' };
+  $('pdf').hidden = false; // el botón vive junto al título de la página (dashboard.html)
+  $('pdf').onclick = () => {
+    const names = projects(report.base);
+    $('print-report').innerHTML = names.length
+      ? names.map((n) => reportSection(n, report.base.filter((t) => t.proyecto === n), report.filtros)).join('')
+      : reportSection('Sin proyecto', report.base, report.filtros);
+    const title = document.title;
+    document.title = `Dashboard Tareas ${new Date().toISOString().slice(0, 10)}`;
+    document.body.classList.add('report');
+    const done = () => { document.body.classList.remove('report'); document.title = title; window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+  };
   $('direct').hidden = !directMode;
   $('direct').textContent = dataNote;
 
   // Periodo: selectores «Desde» y «Hasta» (de mes a mes). Mientras no se toquen siguen el rango completo de los datos,
   // así un mes nuevo entra solo; si se han tocado, la selección se conserva mientras siga siendo válida.
+  let proyecto = '';  // proyecto elegido en las etiquetas de arriba; vacío = Todo
   let touched = false;
   const periodo = () => ({ desde: $('f-desde').value, hasta: $('f-hasta').value });
   // Una tarea sin fecha reconocible no se puede situar en el tiempo: se cuenta siempre.
@@ -244,12 +286,42 @@ function mount(root, initial, { internal = false } = {}) {
 
   // Filtros a partir de los datos actuales, conservando la selección si sigue siendo válida.
   function buildFilters() {
+    const names = projects(all);
+    if (!names.includes(proyecto)) proyecto = '';
+    $('proj-tags').hidden = names.length < 2;
+    const tabs = ['', ...names].map((name) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tab';
+      b.setAttribute('role', 'tab');
+      b.dataset.proyecto = name;
+      b.textContent = name || 'Todo';
+      return b;
+    });
+    const select = (name, focus) => {
+      proyecto = name;
+      for (const t of tabs) {
+        const on = t.dataset.proyecto === name;
+        t.setAttribute('aria-selected', on);
+        t.tabIndex = on ? 0 : -1;
+        if (on && focus) t.focus();
+      }
+      update(true);
+    };
+    tabs.forEach((t, i) => {
+      t.onclick = () => select(t.dataset.proyecto);
+      t.onkeydown = (e) => { // flechas, Inicio y Fin, como en la página de tareas
+        const next = { ArrowRight: (i + 1) % tabs.length, ArrowLeft: (i - 1 + tabs.length) % tabs.length, Home: 0, End: tabs.length - 1 }[e.key];
+        if (next === undefined) return;
+        e.preventDefault();
+        select(tabs[next].dataset.proyecto, true);
+      };
+      const on = t.dataset.proyecto === proyecto;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
+    });
+    $('proj-tags').replaceChildren(...tabs);
     const hasDates = buildPeriod();
-    // Si la hoja no rellena Estado, se ocultan su filtro y su gráfico.
-    const hasEstado = all.some((t) => t.estado);
-    $('w-estado').hidden = !hasEstado;
-    $('filters').hidden = !hasEstado && !hasDates; // sin ningún filtro disponible se oculta también la barra
-    $('card-estado').hidden = !hasEstado;
     for (const [id, key] of FILTERS) {
       const prev = $(id).value;
       const vals = [...new Set(all.map((t) => t[key]).filter(Boolean))];
@@ -260,9 +332,9 @@ function mount(root, initial, { internal = false } = {}) {
   }
 
   function update(resetPage = false) {
-    const hasEstado = all.some((t) => t.estado);
     const f = Object.fromEntries(FILTERS.map(([id, key]) => [key, $(id).value]));
-    const tasks = all.filter((t) => Object.entries(f).every(([k, v]) => !v || t[k] === v) && enPeriodo(t));
+    const base = all.filter((t) => Object.entries(f).every(([k, v]) => !v || t[k] === v) && enPeriodo(t)); // periodo y estado
+    const tasks = proyecto ? base.filter((t) => t.proyecto === proyecto) : base;
     const s = summarize(tasks);
 
     // Al imprimir la barra de filtros no sale: esta línea (visible solo en papel/PDF) indica qué periodo y estado se ven.
@@ -270,6 +342,8 @@ function mount(root, initial, { internal = false } = {}) {
     const partes = [];
     if (desde) partes.push(`Periodo: ${monthLabel(desde)}${hasta !== desde ? ' – ' + monthLabel(hasta) : ''}`);
     if (f.estado) partes.push(`Estado: ${f.estado}`);
+    report = { base, filtros: partes.join(' · ') };
+    if (proyecto) partes.unshift(`Proyecto: ${proyecto}`);
     $('filtros-impresos').textContent = partes.join(' · ');
 
     $('k-n').textContent = s.n;
@@ -279,19 +353,10 @@ function mount(root, initial, { internal = false } = {}) {
       $(lid).textContent = `${a} · ${s.area[a].pts} pts · ${nTareas(s.area[a].n)}`;
     }
 
-    const names = projects(tasks);
-    const perProject = names.map((n) => summarize(tasks.filter((t) => t.proyecto === n)));
-    const maxPts = Math.max(1, ...perProject.flatMap((p) => AREAS.map((a) => p.area[a].pts)));
-    $('projs').innerHTML = names.map((n) => projectCard(n, tasks, maxPts)).join('');
+    donut('c-pie-n', AREAS.map((a) => s.area[a].n), ['tarea', 'tareas']);
+    donut('c-pie-pts', AREAS.map((a) => s.area[a].pts), ['punto', 'puntos']);
 
-    stacked('c-pts', names, Object.fromEntries(AREAS.map((a) => [a, perProject.map((p) => p.area[a].pts)])), true);
-    stacked('c-n', names, Object.fromEntries(AREAS.map((a) => [a, perProject.map((p) => p.area[a].n)])), true);
 
-    const estados = [...new Set(tasks.map((t) => t.estado || 'Sin estado'))];
-    const count = (pred) => tasks.filter((t) => counted(t) && pred(t)).length;
-    if (hasEstado) stacked('c-estado', estados, Object.fromEntries(AREAS.map((a) => [a, estados.map((e) => count((t) => (t.estado || 'Sin estado') === e && t.area === a))])));
-    const sizes = SIZES;
-    stacked('c-tamano', sizes, Object.fromEntries(AREAS.map((a) => [a, sizes.map((z) => count((t) => t.tamano === z && t.area === a))])));
 
     detail.setTasks(tasks, { keepPage: !resetPage }); // misma tabla que en el formulario, sin poder cambiar el estado
   }

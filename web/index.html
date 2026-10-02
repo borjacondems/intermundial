@@ -3,16 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gestor de roadmap</title>
+  <title>Gestor de tareas</title>
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.ico?v=2" sizes="any">
+  <link rel="icon" type="image/png" href="favicon.png?v=2">
+  <link rel="stylesheet" href="style.css?v=20261002s">
 </head>
 <body>
-  <header class="top">
-    <h1>Roadmap de Producto y Diseño</h1>
-  </header>
   <main>
+    <div class="page-head">
+      <h1 class="page-title">Gestor de tareas</h1>
+    </div>
     <div class="card" id="gate" hidden>
       <h2>Clave de equipo</h2>
       <p class="hint">Pídesela a quien administre el proyecto. Se guarda solo en este navegador.</p>
@@ -44,20 +46,32 @@
           <div><label for="proyecto">Proyecto *</label><select id="proyecto" required></select></div>
           <div><label for="area">Área</label><select id="area"></select></div>
           <div><label for="estado">Estado</label><select id="estado"></select></div>
-          <div class="full"><label for="tamano">Tamaño *</label><select id="tamano" required></select></div>
+          <div><label for="tamano">Tamaño *</label><select id="tamano" required></select></div>
           <div class="full"><label for="nota">Nota</label><textarea id="nota" rows="3" maxlength="1900"></textarea></div>
-          <div class="full"><button id="submit" type="submit">Guardar tarea</button>
+          <div class="full"><button id="submit" type="submit">Guardar</button>
             <div class="msg" id="msg" role="status"></div></div>
         </form>
       </section>
     </div>
   </main>
 
-  <script src="js/config.js"></script>
-  <script src="js/loading.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/dashboard.js"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
-  <script src="js/tasktable.js"></script>
+  <!-- Confirmación de borrado (ventana modal con overlay) -->
+  <dialog id="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <form method="dialog">
+      <h2 id="confirm-title">¿Quieres borrar esta tarea?</h2>
+      <p id="confirm-text"><b id="confirm-name"></b><br>Se eliminará de la hoja y no se podrá deshacer.</p>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="ghost" autofocus>Cancelar</button>
+        <button type="submit" value="ok" class="danger">Borrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/config.js?v=20261002s"></script>
+  <script src="js/loading.js?v=20261002s"></script>
+  <script src="js/api.js?v=20261002s"></script>
+  <script src="js/dashboard.js?v=20261002s"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
+  <script src="js/tasktable.js?v=20261002s"></script>
   <script>
 
     const PROYECTOS = ['Tienda online', 'Safer', 'App/AC'];
@@ -70,8 +84,7 @@
     fill('area', AREAS); fill('estado', ESTADOS);
     // Tamaño: la escala sale de PTS (dashboard.js); cada opción muestra sus puntos de esfuerzo.
     $('tamano').innerHTML = '<option value="">Selecciona un tamaño</option>' +
-      SIZES.map((k) => `<option value="${k}">${k} · ${PTS[k]} ${PTS[k] === 1 ? 'punto' : 'puntos'}</option>`).join('') +
-      '<option value="TBD">TBD · sin puntos</option><option value="Incluido">Incluido · sin puntos</option>';
+      SIZES.map((k) => `<option value="${k}">${k} · ${PTS[k]} ${PTS[k] === 1 ? 'punto' : 'puntos'}</option>`).join('');
     $('tamano').value = '';
     $('estado').insertAdjacentHTML('afterbegin', '<option value="">Sin estado</option>');
     $('estado').value = '';
@@ -118,7 +131,7 @@
     // ---- Tabla con etiquetas de filtro por proyecto y contador (módulo compartido con el dashboard) ----
     const table = TaskTable.init($('panel-table'), {
       projects: PROYECTOS,
-      rowOptions: { statusOptions: ESTADOS, disabled: directMode }, // estado editable
+      rowOptions: { statusOptions: ESTADOS, disabled: directMode, deletable: !directMode }, // estado editable y botón de borrar
       onChange: ({ total }) => { $('count').textContent = total ? `(${total})` : ''; },
     });
 
@@ -163,6 +176,41 @@
       }
     });
 
+    // ---- Borrar una tarea: botón al final de la fila (al pasar el ratón) + ventana de confirmación ----
+    const dialog = $('confirm');
+    const confirmar = (task) => new Promise((resolve) => {
+      $('confirm-name').textContent = task.iniciativa;
+      dialog.returnValue = 'cancel';
+      dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), { once: true });
+      dialog.showModal();
+    });
+    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close('cancel'); }); // clic en el overlay = cancelar
+
+    $('rows').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.row-del');
+      if (!btn) return;
+      const task = table.tasks().find((t) => t.id === btn.dataset.id);
+      if (!task || !(await confirmar(task))) return;
+      $('table-msg').hidden = true;
+      Loading.show('Borrando tarea…');
+      try {
+        await deleteTask(task.id, task.iniciativa);
+        // Al borrar una fila las de debajo suben una posición: se retira y se renumera lo que queda, y se confirma con la hoja.
+        const n = Number(task.id);
+        const tasks = table.tasks().filter((t) => t.id !== task.id).map((t) => (Number(t.id) > n ? { ...t, id: String(Number(t.id) - 1) } : t));
+        pendientes.clear();
+        dataCache.set('tasks', tasks);
+        renderTable(tasks);
+        load({ blocking: false, max: tasks.length });
+      } catch (err) {
+        if (err.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }
+        else {
+          if (err.status === 409) await load({ blocking: false });
+          $('table-msg').textContent = err.message; $('table-msg').hidden = false;
+        }
+      } finally { Loading.hide(); }
+    });
+
     function renderTable(tasks) {
       table.setTasks(tasks);
       const note = describeSource(tasks.length);
@@ -181,9 +229,10 @@
     // Lee la tabla directamente de la hoja de Google y la pinta. Devuelve true si todo fue bien.
     //   blocking: con overlay (false = carga silenciosa en segundo plano)
     //   verify:   lee a través del Apps Script para comprobar además la clave (más lento; solo al introducirla)
+    //   max:      nº máximo de filas (tras borrar). Si la hoja aún muestra la fila borrada se mantiene la tabla local.
     //   min:      nº de filas que debe tener como mínimo (tras guardar). Si la hoja aún no refleja la nueva fila
     //             se mantiene la que ya se añadió en local, en vez de hacerla desaparecer.
-    async function load({ blocking = true, label = 'Cargando…', verify = false, min = 0 } = {}) {
+    async function load({ blocking = true, label = 'Cargando…', verify = false, min = 0, max = Infinity } = {}) {
       const read = verify ? getTasks : getSheetTasks;
       try {
         const run = async () => {
@@ -192,10 +241,14 @@
             await new Promise((r) => setTimeout(r, 1500));
             tasks = await read();
           }
+          if (tasks.length > max) { // tras borrar: la hoja aún muestra la fila que ya no está
+            await new Promise((r) => setTimeout(r, 1500));
+            tasks = await read();
+          }
           return tasks;
         };
         const tasks = await (blocking ? Loading.wrap(label, run) : run());
-        if (min && tasks.length < min) return true;
+        if ((min && tasks.length < min) || tasks.length > max) return true;
         aplicarPendientes(tasks);
         if (tasks.length) dataCache.set('tasks', tasks); else dataCache.clear('tasks'); // un resultado vacío no se guarda
         renderTable(tasks);
@@ -233,13 +286,17 @@
           iniciativa: $('tarea').value, proyecto: $('proyecto').value,
           area: $('area').value, estado: $('estado').value, tamano: $('tamano').value, nota,
         });
-        msg.className = 'msg ok'; msg.textContent = 'Tarea guardada en la hoja.';
+        msg.className = 'msg ok'; msg.textContent = 'Tarea guardada en la base de datos';
         // La fila aparece en la tabla al instante; después se relee la hoja en segundo plano.
         const antes = (dataCache.get('tasks') || { data: [] }).data;
         const tasks = [...antes, { id: saved.id, iniciativa: saved.iniciativa, cliente: '', proyecto: saved.proyecto, area: saved.area, estado: saved.estado, tamano: saved.tamano, nota }];
         dataCache.set('tasks', tasks);
         renderTable(tasks);
-        for (const id of ['tarea', 'nota']) $(id).value = ''; // el proyecto se conserva para cargar varias seguidas
+        // Se vacían Tarea y Nota; proyecto, área, estado y tamaño se conservan para cargar varias seguidas.
+        // form.reset() (y no value = '') limpia también el estado de validación: así el campo vacío no sale en rojo.
+        const keep = ['proyecto', 'area', 'estado', 'tamano'].map((id) => [id, $(id).value]);
+        $('form').reset();
+        for (const [id, v] of keep) $(id).value = v;
         load({ blocking: false, min: tasks.length });
       } catch (err) {
         if (err.status === 401) { teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }

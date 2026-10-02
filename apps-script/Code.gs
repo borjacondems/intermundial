@@ -16,7 +16,7 @@
 // Para preparar la hoja con esta escala, ejecuta UNA vez la función setupSheet desde el editor.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'fechas-1';
+const VERSION = 'borrar-2';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
@@ -42,6 +42,9 @@ function doPost(e) {
       case 'update':
         requireTeam_(req.key);
         return out_(updateTask_(req.id, req.iniciativa, req.changes || {}));
+      case 'delete':
+        requireTeam_(req.key);
+        return out_(deleteTask_(req.id, req.iniciativa));
       case 'client':
         requireClient_(req.client, req.key);
         return out_(listTasks_(req.client));
@@ -218,6 +221,29 @@ function updateTask_(id, iniciativa, changes) {
   }
 }
 
+// Borra una fila entera. Igual que en updateTask_, `iniciativa` comprueba que la fila sigue siendo la que la página
+// mostraba; si no coincide (409) no se borra nada. Al borrar, las filas de debajo suben una posición.
+function deleteTask_(id, iniciativa) {
+  const row = Number(id);
+  if (!Number.isInteger(row) || row < 2) throw fail_(400, 'Fila no válida');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = sheet_();
+    const head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
+    const idx = columns_(head);
+    const changed = 'La hoja ha cambiado desde que se cargó la tabla. Recarga la página.';
+    if (row > sheet.getLastRow()) throw fail_(409, changed);
+    const current = String(sheet.getRange(row, idx.title + 1).getValue()).trim();
+    if (current !== String(iniciativa == null ? '' : iniciativa).trim()) throw fail_(409, changed);
+    sheet.deleteRow(row);
+    return { id: String(row), deleted: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // ---------- Escala de tamaños ----------
 
 // Devuelve el tamaño en su forma canónica (XS, S, M, L, XL, TBD, Incluido) o '' si no se reconoce.
@@ -261,10 +287,17 @@ function setupSheet() {
   const idx = columns_(head);
   const tCol = idx['Tamaño'] + 1;
   const rows = Math.max(sheet.getLastRow() - 1, 0);
-  const report = { migrados: 0, sinReconocer: [], filas: rows, columnaPuntos: '' };
+  const report = { migrados: 0, sinReconocer: [], filas: rows, columnaPuntos: '', avisos: [] };
+  // Cada paso es independiente: si la hoja usa una «Tabla» con tipos de columna, Google no deja cambiar la validación o
+  // las fórmulas por código («No se puede realizar esta operación en columnas de tipo»). Ese paso se salta y se avisa.
+  const step = (nombre, fn) => {
+    try { fn(); } catch (e) { report.avisos.push(nombre + ': ' + e.message); }
+  };
 
-  if (rows) {
+  step('migrar tamaños', () => {
+    if (!rows) return;
     const range = sheet.getRange(2, tCol, rows, 1);
+    let migrados = 0;
     const out = range.getValues().map((r, i) => {
       const raw = String(r[0]).trim();
       if (!raw) return [r[0]];
@@ -273,30 +306,36 @@ function setupSheet() {
         report.sinReconocer.push('fila ' + (i + 2) + ': «' + raw + '»');
         return [r[0]];
       }
-      if (n !== raw) report.migrados++;
+      if (n !== raw) migrados++;
       return [n];
     });
     range.setValues(out);
-  }
+    report.migrados = migrados;
+  });
 
-  const rule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(TAMANOS, true)
-    .setAllowInvalid(false)
-    .setHelpText('Tamaño: ' + Object.keys(SCALE).map((k) => k + ' = ' + SCALE[k]).join(' · ') + ' puntos; TBD o Incluido (sin puntos).')
-    .build();
-  sheet.getRange(2, tCol, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(rule);
+  step('desplegable de Tamaño', () => {
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(TAMANOS, true)
+      .setAllowInvalid(false)
+      .setHelpText('Tamaño: ' + Object.keys(SCALE).map((k) => k + ' = ' + SCALE[k]).join(' · ') + ' puntos; TBD o Incluido (sin puntos).')
+      .build();
+    sheet.getRange(2, tCol, Math.max(sheet.getMaxRows() - 1, 1), 1).setDataValidation(rule);
+  });
 
-  let pCol = head.indexOf('Puntos') + 1;
-  if (!pCol) {
-    pCol = head.length + 1;
-    sheet.getRange(1, pCol).setValue('Puntos').setFontWeight('bold');
-  }
-  if (rows) {
-    const formulas = [];
-    for (let r = 2; r <= rows + 1; r++) formulas.push([pointsFormula_(colLetter_(tCol) + r)]);
-    sheet.getRange(2, pCol, rows, 1).setFormulas(formulas);
-  }
-  report.columnaPuntos = colLetter_(pCol);
+  step('columna Puntos', () => {
+    let pCol = head.indexOf('Puntos') + 1;
+    if (!pCol) {
+      pCol = head.length + 1;
+      sheet.getRange(1, pCol).setValue('Puntos').setFontWeight('bold');
+    }
+    report.columnaPuntos = colLetter_(pCol);
+    if (rows) {
+      const formulas = [];
+      for (let r = 2; r <= rows + 1; r++) formulas.push([pointsFormula_(colLetter_(tCol) + r)]);
+      sheet.getRange(2, pCol, rows, 1).setFormulas(formulas);
+    }
+  });
+
   Logger.log(JSON.stringify(report));
   return report;
 }

@@ -9,16 +9,20 @@
   <link rel="preconnect" href="https://script.google.com">
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.ico?v=2" sizes="any">
+  <link rel="icon" type="image/png" href="favicon.png?v=2">
+  <link rel="stylesheet" href="style.css?v=20261002s">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
-  <header class="top"><h1 id="title">Roadmap de Producto y Diseño</h1>
-    <button class="ghost noprint" style="margin-left:auto" onclick="print()">Imprimir / PDF</button></header>
   <main>
+    <div class="page-head">
+      <h1 class="page-title">Dashboard Tareas</h1>
+      <button type="button" class="tertiary noprint" id="pdf" hidden>Descargar PDF</button>
+    </div>
     <div class="card" id="gate" hidden>
-      <h2>Acceso al dashboard</h2>
-      <p class="hint">Introduce tu clave de acceso. Si eres cliente, abre el enlace que te facilitó el administrador.</p>
+      <h2>Dashboard de tareas</h2>
+      <p class="hint">Introduce tu clave de acceso. Si tienes problemas, ponte en contacto con <a href="mailto:borja.conde@mendesaltaren.com">borja.conde@mendesaltaren.com</a></p>
       <div class="row">
         <div class="field">
           <input id="key" type="password" autocomplete="off" placeholder="Clave" aria-describedby="key-error">
@@ -29,11 +33,11 @@
     </div>
     <div id="root"></div>
   </main>
-  <script src="js/config.js"></script>
-  <script src="js/loading.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/dashboard.js"></script>
-  <script src="js/tasktable.js"></script>
+  <script src="js/config.js?v=20261002s"></script>
+  <script src="js/loading.js?v=20261002s"></script>
+  <script src="js/api.js?v=20261002s"></script>
+  <script src="js/dashboard.js?v=20261002s"></script>
+  <script src="js/tasktable.js?v=20261002s"></script>
   <script>
     (async () => {
       const $ = (id) => document.getElementById(id);
@@ -70,8 +74,18 @@
           if (view) return view.setData(tasks);
           $('gate').hidden = true;
           root.innerHTML = '';
-          if (access.c) $('title').textContent = `Roadmap de Producto y Diseño · ${access.c}`;
-          view = mount(root, tasks);
+          view = mount(root, tasks, { onReload: reload });
+        };
+        // Botón «Recargar»: vuelve a leer los datos con el acceso actual, bloqueando la página mientras tanto.
+        const reload = async () => {
+          try {
+            const tasks = await Loading.wrap('Recargando el dashboard…', () => getClientTasks(access.c || '', access.k || ''));
+            await render(tasks);
+            if (!directMode) dataCache.set(cacheName, tasks);
+            setStatus(directMode ? '' : `Datos actualizados a las ${hhmm(Date.now())}`);
+          } catch (e) {
+            setStatus(`No se pudo recargar: ${e.message}`);
+          }
         };
         try {
           const fetchTasks = () => getClientTasks(access.c || '', access.k || '');
