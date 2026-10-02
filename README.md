@@ -43,7 +43,7 @@ Si cambias `Code.gs` más adelante: Implementar → Gestionar implementaciones �
 ## 3. Web (GitHub Pages)
 1. Pega la URL `/exec` en `web/js/config.js`.
 2. Sube el repo a GitHub, Settings → Pages → Source: **GitHub Actions**. Cada push a `main` que toque `web/` se despliega.
-3. Equipo: `https://ORG.github.io/REPO/` (introducen la clave de equipo una vez).
+3. Equipo: `https://TU_USUARIO.github.io/intermundial/` (introducen la clave de equipo una vez).
 
 ## 4. Acceso de cada usuario
 Son dos páginas independientes, cada una con su propia credencial y sin enlaces entre ellas:
@@ -57,7 +57,7 @@ Son dos páginas independientes, cada una con su propia credencial y sin enlaces
 `ADMIN_KEY` permite añadir tareas y ver el dashboard de cualquier cliente (o de todos a la vez). Las claves de equipo y de cliente no la sustituyen: la de equipo no abre el dashboard y la de cliente solo abre el suyo.
 Enlace del dashboard:
 ```
-https://ORG.github.io/REPO/dashboard.html#c=Intermundial&k=clave-larga-aleatoria
+https://TU_USUARIO.github.io/intermundial/dashboard.html#c=Intermundial&k=clave-larga-aleatoria
 ```
 Tras abrirlo una vez con el enlace, el navegador recuerda el acceso y `dashboard.html` funciona también sin el `#…`. Si la clave deja de valer, el acceso guardado se borra y hay que usar el enlace nuevo. El fragmento (`#`) no se envía a ningún servidor. Para revocar el acceso, cambia esa clave en `CLIENT_KEYS`. Botón «Imprimir / PDF» para guardar un informe.
 
