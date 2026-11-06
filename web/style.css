@@ -222,16 +222,24 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: var(--size-2) var(--size-3); border-bottom: 1px solid var(--stroke-low); }
 th { color: var(--content-mid); }
 td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
-/* Tabla de tareas: reparto de columnas fijo, para que no se muevan al filtrar (con table-layout automático
-   el ancho depende de las filas visibles). Por debajo de min-width, .table-wrap ofrece desplazamiento lateral. */
-table.tasks { table-layout: fixed; min-width: 760px; }
-table.tasks th:nth-child(1) { width: 14%; }  /* Proyecto */
-table.tasks th:nth-child(2) { width: 12%; }  /* Área */
-table.tasks th:nth-child(3) { width: 13%; }  /* Estado */
-table.tasks th:nth-child(4) { width: 24%; }  /* Tarea */
-table.tasks th:nth-child(5) { width: 9%; }   /* Tamaño */
-table.tasks th:nth-child(6) { width: 6%; }   /* Pts */
-table.tasks th:nth-child(7) { width: 22%; }  /* Nota */
+/* Tabla de tareas: reparto de columnas fijo (en px), para que no se muevan al filtrar (con table-layout automático el ancho
+   depende de las filas visibles). Si no caben en pantalla, .table-wrap ofrece desplazamiento horizontal, para leer las notas
+   completas sin comprimir el resto. La columna de acciones (editar / borrar) queda fija a la derecha. */
+table.tasks { table-layout: fixed; min-width: 1240px; }
+table.tasks th:nth-child(1) { width: 130px; }  /* Proyecto */
+table.tasks th:nth-child(2) { width: 120px; }  /* Área */
+table.tasks th:nth-child(3) { width: 140px; }  /* Estado */
+table.tasks th:nth-child(4) { width: 280px; }  /* Tarea */
+table.tasks th:nth-child(5) { width: 90px; }   /* Tamaño */
+table.tasks th:nth-child(6) { width: 64px; }   /* Pts */
+table.tasks th:nth-child(7) { width: 416px; }  /* Nota */
+table.tasks th.act { width: 96px; }            /* Acciones (solo en la tabla del equipo) */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Barra de desplazamiento siempre visible y fina, para que se note que la tabla se puede mover */
+.table-wrap { scrollbar-width: thin; scrollbar-color: var(--content-low) transparent; padding-bottom: var(--size-1); }
+.table-wrap::-webkit-scrollbar { height: 10px; }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--stroke-low); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: var(--content-low); background-clip: content-box; }
 table.tasks td { overflow-wrap: anywhere; }
 /* Selector de estado editable dentro de la tabla: mismo aspecto que la etiqueta, con flecha */
 select.status {
@@ -453,12 +461,9 @@ body:has(#gate:not([hidden])) main {
 
 /* ---- Borrar tarea: botón al final de la fila (aparece al pasar el ratón) y ventana de confirmación ---- */
 button.danger { background: var(--semantic-danger); color: var(--content-oncolor-high); }
-table.tasks td:last-child { position: relative; }
-table.tasks.deletable td:last-child { padding-right: 96px; }
-.row-actions {
-  position: absolute; right: var(--size-2); top: 50%; transform: translateY(-50%); display: flex; gap: var(--size-1);
-  opacity: 0; transition: opacity .2s ease-in;
-}
+table.tasks th.act, table.tasks td.act { position: sticky; right: 0; padding: 0 var(--size-2); background: var(--surface-default); }
+table.tasks td.act { box-shadow: -12px 0 12px -12px var(--stroke-low); }
+.row-actions { display: flex; justify-content: flex-end; gap: var(--size-1); opacity: 0; transition: opacity .2s ease-in; }
 table.tasks tr:hover .row-actions, .row-actions:focus-within { opacity: 1; }
 button.row-del, button.row-edit {
   width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
@@ -496,3 +501,4 @@ dialog#edit .dialog-actions { grid-column: 1 / -1; }
 dialog#edit .msg { grid-column: 1 / -1; margin: 0; }
 @media (prefers-reduced-motion: reduce) { dialog#edit[open] { animation: none; } }
 @media (max-width: 600px) { dialog#edit form.task { grid-template-columns: 1fr; } }
+@media print { table.tasks { min-width: 0; table-layout: auto; } table.tasks th.act, table.tasks td.act { display: none; } }
