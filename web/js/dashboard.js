@@ -254,8 +254,8 @@ function mount(root, initial, { internal = false, onReload = null } = {}) {
   $('direct').hidden = !directMode;
   $('direct').textContent = dataNote;
 
-  // Periodo: selectores «Desde» y «Hasta» (de mes a mes). Mientras no se toquen siguen el rango completo de los datos,
-  // así un mes nuevo entra solo; si se han tocado, la selección se conserva mientras siga siendo válida.
+  // Periodo: selectores «Desde» y «Hasta» (de mes a mes). Mientras no se toquen muestran el mes más reciente con tareas,
+  // así al llegar un mes nuevo se pasa a él solo; si se han tocado, la selección se conserva mientras siga siendo válida.
   let proyecto = '';  // proyecto elegido en las etiquetas de arriba; vacío = Todo
   let touched = false;
   const periodo = () => ({ desde: $('f-desde').value, hasta: $('f-hasta').value });
@@ -275,11 +275,16 @@ function mount(root, initial, { internal = false, onReload = null } = {}) {
     const options = months.map((k) => `<option value="${k}">${monthLabel(k)}</option>`).join('');
     const prev = periodo();
     $('f-desde').innerHTML = $('f-hasta').innerHTML = options;
-    let desde = months[0], hasta = months[months.length - 1];
+    // Por defecto, un solo mes: el último con tareas que no sea posterior al mes actual (el más cercano a hoy) o, si todas
+    // son futuras, el primero. Una vez tocado el selector, se respeta la elección.
+    const hoy = ymKey(new Date().getFullYear(), new Date().getMonth() + 1);
+    const conTareas = [...new Set(keys)];
+    const reciente = conTareas.filter((k) => k <= hoy).pop() || conTareas[0];
+    let desde = reciente, hasta = reciente;
     if (touched) {
       if (months.includes(prev.desde)) desde = prev.desde;
       if (months.includes(prev.hasta)) hasta = prev.hasta;
-      if (desde > hasta) { desde = months[0]; hasta = months[months.length - 1]; }
+      if (desde > hasta) { desde = reciente; hasta = reciente; }
     }
     $('f-desde').value = desde;
     $('f-hasta').value = hasta;
