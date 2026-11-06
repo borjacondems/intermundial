@@ -11,9 +11,10 @@ const TaskTable = {
   //   pageSize:   filas por página (20 por defecto)
   //   emptyText:  texto cuando no hay tareas que mostrar
   //   title:      titular opcional (dashboard): barra con titular y contador dentro del recuadro de la tabla
-  //   period:     true = selector «Desde / Hasta» (de mes a mes) encima de la tabla, con la misma lógica que el del dashboard
+  //   period:     { box, desde, hasta } = elementos de la página (contenedor y dos <select>) con el selector «Desde / Hasta»
+  //               (de mes a mes), con la misma lógica que el del dashboard. Va fuera de la tabla (p. ej. encima de las pestañas)
   // Devuelve { setTasks(tareas, { keepPage }), tasks(), paint(), reveal(tarea) }.
-  init(root, { projects = [], rowOptions = {}, onChange = () => {}, pageSize = 20, emptyText = 'Aún no hay tareas.', title = '', groups = null, period = false } = {}) {
+  init(root, { projects = [], rowOptions = {}, onChange = () => {}, pageSize = 20, emptyText = 'Aún no hay tareas.', title = '', groups = null, period = null } = {}) {
     // Con titular (dashboard) la barra va dentro del recuadro de la tabla; sin él (formulario), encima y fuera.
     const bar = `      <div class="filterbar">
         ${title ? `<h2 class="sec">${title}</h2>` : ''}
@@ -23,13 +24,8 @@ const TaskTable = {
           <button type="button" class="linkbtn" id="clear" hidden>Quitar filtros</button>
         </div>
       </div>`;
-    const periodBar = `      <div class="filters" id="period" hidden>
-        <div><label for="t-desde">Desde</label><select id="t-desde"></select></div>
-        <div><label for="t-hasta">Hasta</label><select id="t-hasta"></select></div>
-      </div>
-`;
     root.innerHTML = `
-${period ? periodBar : ''}${title ? '' : bar}      <section class="card">
+${title ? '' : bar}      <section class="card">
         ${title ? bar : ''}
         <p class="msg err" id="table-msg" role="status" hidden></p>
         <p class="note" id="source" hidden></p>
@@ -48,11 +44,12 @@ ${period ? periodBar : ''}${title ? '' : bar}      <section class="card">
 
     let all = [];
 
-    // ---- Periodo (solo con period: true): mismo comportamiento que en el dashboard ----
+    // ---- Periodo (solo con period): mismo comportamiento que en el dashboard ----
     // Por defecto, un solo mes: el último con tareas que no sea posterior al mes actual (el más cercano a hoy) o, si todas
     // son futuras, el primero. Una vez tocado el selector se respeta la elección. Las tareas sin fecha se cuentan siempre.
+    const pBox = period && period.box, pDesde = period && period.desde, pHasta = period && period.hasta;
     let touched = false;
-    const periodo = () => (period ? { desde: $('t-desde').value, hasta: $('t-hasta').value } : { desde: '', hasta: '' });
+    const periodo = () => (period ? { desde: pDesde.value, hasta: pHasta.value } : { desde: '', hasta: '' });
     const enPeriodo = (t) => {
       const { desde, hasta } = periodo();
       const k = monthKey(t.fecha);
@@ -61,11 +58,11 @@ ${period ? periodBar : ''}${title ? '' : bar}      <section class="card">
     function buildPeriod() {
       if (!period) return;
       const keys = all.map((t) => monthKey(t.fecha)).filter(Boolean).sort();
-      $('period').hidden = !keys.length;
-      if (!keys.length) { $('t-desde').innerHTML = $('t-hasta').innerHTML = ''; return; }
+      pBox.hidden = !keys.length;
+      if (!keys.length) { pDesde.innerHTML = pHasta.innerHTML = ''; return; }
       const months = monthsBetween(keys[0], keys[keys.length - 1]);
       const prev = periodo();
-      $('t-desde').innerHTML = $('t-hasta').innerHTML = months.map((k) => `<option value="${k}">${monthLabel(k)}</option>`).join('');
+      pDesde.innerHTML = pHasta.innerHTML = months.map((k) => `<option value="${k}">${monthLabel(k)}</option>`).join('');
       const hoy = ymKey(new Date().getFullYear(), new Date().getMonth() + 1);
       const reciente = [...new Set(keys)].filter((k) => k <= hoy).pop() || keys[0];
       let desde = reciente, hasta = reciente;
@@ -74,12 +71,12 @@ ${period ? periodBar : ''}${title ? '' : bar}      <section class="card">
         if (months.includes(prev.hasta)) hasta = prev.hasta;
         if (desde > hasta) { desde = reciente; hasta = reciente; }
       }
-      $('t-desde').value = desde;
-      $('t-hasta').value = hasta;
+      pDesde.value = desde;
+      pHasta.value = hasta;
     }
     if (period) {
-      $('t-desde').onchange = () => { touched = true; if ($('t-desde').value > $('t-hasta').value) $('t-hasta').value = $('t-desde').value; page = 1; paint(); };
-      $('t-hasta').onchange = () => { touched = true; if ($('t-hasta').value < $('t-desde').value) $('t-desde').value = $('t-hasta').value; page = 1; paint(); };
+      pDesde.onchange = () => { touched = true; if (pDesde.value > pHasta.value) pHasta.value = pDesde.value; page = 1; paint(); };
+      pHasta.onchange = () => { touched = true; if (pHasta.value < pDesde.value) pDesde.value = pHasta.value; page = 1; paint(); };
     }
 
     // Etiquetas de filtro agrupadas: por defecto un solo grupo con los proyectos.
@@ -216,9 +213,9 @@ ${period ? periodBar : ''}${title ? '' : bar}      <section class="card">
       // Tras crear o editar una tarea: si su mes queda fuera del periodo elegido, se amplía para que no desaparezca de la vista.
       reveal(task) {
         const k = monthKey(task.fecha);
-        if (!period || !k || !$('t-desde').value) return;
-        if (k < $('t-desde').value && [...$('t-desde').options].some((o) => o.value === k)) $('t-desde').value = k;
-        if (k > $('t-hasta').value && [...$('t-hasta').options].some((o) => o.value === k)) $('t-hasta').value = k;
+        if (!period || !k || !pDesde.value) return;
+        if (k < pDesde.value && [...pDesde.options].some((o) => o.value === k)) pDesde.value = k;
+        if (k > pHasta.value && [...pHasta.options].some((o) => o.value === k)) pHasta.value = k;
         paint();
       },
       tasks: () => all,

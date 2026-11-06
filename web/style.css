@@ -225,14 +225,14 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 /* Tabla de tareas: reparto de columnas fijo (en px), para que no se muevan al filtrar (con table-layout automático el ancho
    depende de las filas visibles). Si no caben en pantalla, .table-wrap ofrece desplazamiento horizontal, para leer las notas
    completas sin comprimir el resto. La columna de acciones (editar / borrar) queda fija a la derecha. */
-table.tasks { table-layout: fixed; min-width: 1240px; }
-table.tasks th:nth-child(1) { width: 130px; }  /* Proyecto */
-table.tasks th:nth-child(2) { width: 120px; }  /* Área */
-table.tasks th:nth-child(3) { width: 140px; }  /* Estado */
-table.tasks th:nth-child(4) { width: 280px; }  /* Tarea */
-table.tasks th:nth-child(5) { width: 90px; }   /* Tamaño */
-table.tasks th:nth-child(6) { width: 64px; }   /* Pts */
-table.tasks th:nth-child(7) { width: 416px; }  /* Nota */
+table.tasks { table-layout: fixed; min-width: 1144px; }
+table.tasks th:nth-child(1) { width: 112px; }  /* Proyecto */
+table.tasks th:nth-child(2) { width: 104px; }  /* Área */
+table.tasks th:nth-child(3) { width: 132px; }  /* Estado */
+table.tasks th:nth-child(4) { width: 232px; }  /* Tarea */
+table.tasks th:nth-child(5) { width: 72px; }   /* Tamaño */
+table.tasks th:nth-child(6) { width: 52px; }   /* Pts */
+table.tasks th:nth-child(7) { width: 440px; }  /* Nota */
 table.tasks th.act { width: 96px; }            /* Acciones (solo en la tabla del equipo) */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Barra de desplazamiento siempre visible y fina, para que se note que la tabla se puede mover */
@@ -461,8 +461,10 @@ body:has(#gate:not([hidden])) main {
 
 /* ---- Borrar tarea: botón al final de la fila (aparece al pasar el ratón) y ventana de confirmación ---- */
 button.danger { background: var(--semantic-danger); color: var(--content-oncolor-high); }
-table.tasks th.act, table.tasks td.act { position: sticky; right: 0; padding: 0 var(--size-2); background: var(--surface-default); }
-table.tasks td.act { box-shadow: -12px 0 12px -12px var(--stroke-low); }
+table.tasks th.act, table.tasks td.act { position: sticky; right: 0; padding: 0 var(--size-2); background: transparent; }
+/* La celda de acciones no lleva fondo ni intercepta el ratón: las notas que quedan debajo se leen siempre. Solo los botones, al pasar el ratón por la fila, se superponen. */
+table.tasks th.act, table.tasks td.act { pointer-events: none; }
+table.tasks .row-actions button { pointer-events: auto; }
 .row-actions { display: flex; justify-content: flex-end; gap: var(--size-1); opacity: 0; transition: opacity .2s ease-in; }
 table.tasks tr:hover .row-actions, .row-actions:focus-within { opacity: 1; }
 button.row-del, button.row-edit {
@@ -502,3 +504,7 @@ dialog#edit .msg { grid-column: 1 / -1; margin: 0; }
 @media (prefers-reduced-motion: reduce) { dialog#edit[open] { animation: none; } }
 @media (max-width: 600px) { dialog#edit form.task { grid-template-columns: 1fr; } }
 @media print { table.tasks { min-width: 0; table-layout: auto; } table.tasks th.act, table.tasks td.act { display: none; } }
+
+/* Gestor de tareas: el selector de periodo va encima de las pestañas */
+#app > .filters { margin: var(--size-12) 0 0; }
+#app > .filters:not([hidden]) + .tabs { margin-top: var(--size-6); }

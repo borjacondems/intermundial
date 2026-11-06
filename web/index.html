@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <link rel="icon" href="favicon.ico?v=2" sizes="any">
   <link rel="icon" type="image/png" href="favicon.png?v=2">
-  <link rel="stylesheet" href="style.css?v=20261106f">
+  <link rel="stylesheet" href="style.css?v=20261106g">
 </head>
 <body>
   <main>
@@ -28,6 +28,11 @@
     </div>
 
     <div id="app" hidden>
+      <!-- Periodo: Desde / Hasta (de mes a mes). Lo gestiona TaskTable; va encima de las pestañas -->
+      <div class="filters" id="period" hidden>
+        <div><label for="t-desde">Desde</label><select id="t-desde"></select></div>
+        <div><label for="t-hasta">Hasta</label><select id="t-hasta"></select></div>
+      </div>
       <div class="tabs" role="tablist" aria-label="Secciones">
         <button type="button" class="tab" role="tab" id="tab-table" data-tab="table" aria-selected="true" aria-controls="panel-table">
           Tareas <span class="count" id="count"></span>
@@ -87,11 +92,11 @@
 
   <footer style="text-align:center;font-size:2rem;padding:24px 0">🐱</footer>
 
-  <script src="js/config.js?v=20261106f"></script>
-  <script src="js/loading.js?v=20261106f"></script>
-  <script src="js/api.js?v=20261106f"></script>
-  <script src="js/dashboard.js?v=20261106f"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
-  <script src="js/tasktable.js?v=20261106f"></script>
+  <script src="js/config.js?v=20261106g"></script>
+  <script src="js/loading.js?v=20261106g"></script>
+  <script src="js/api.js?v=20261106g"></script>
+  <script src="js/dashboard.js?v=20261106g"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
+  <script src="js/tasktable.js?v=20261106g"></script>
   <script>
 
     const PROYECTOS = ['Tienda online', 'Safer', 'App/AC'];
@@ -151,7 +156,7 @@
     // ---- Tabla con etiquetas de filtro por proyecto y contador (módulo compartido con el dashboard) ----
     const table = TaskTable.init($('panel-table'), {
       projects: PROYECTOS,
-      period: true, // selector Desde / Hasta, como en el dashboard
+      period: { box: $('period'), desde: $('t-desde'), hasta: $('t-hasta') }, // selector Desde / Hasta (encima de las pestañas), como en el dashboard
       rowOptions: { statusOptions: ESTADOS, disabled: directMode, deletable: !directMode, editable: !directMode }, // estado editable, botón de editar y de borrar
       onChange: ({ total }) => { $('count').textContent = total ? `(${total})` : ''; },
     });
