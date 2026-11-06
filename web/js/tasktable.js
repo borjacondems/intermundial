@@ -28,7 +28,7 @@ ${title ? '' : bar}      <section class="card">
         <p class="msg err" id="table-msg" role="status" hidden></p>
         <p class="note" id="source" hidden></p>
         <div class="table-wrap">
-          <table class="tasks${rowOptions.deletable ? ' deletable' : ''}">
+          <table class="tasks${rowOptions.deletable || rowOptions.editable ? ' deletable' : ''}">
             <thead><tr><th>Proyecto</th><th>Área</th><th>Estado</th><th>Tarea</th><th>Tamaño</th><th class="n">Pts</th><th>Nota</th></tr></thead>
             <tbody id="rows"></tbody>
           </table>

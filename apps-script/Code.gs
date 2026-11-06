@@ -16,7 +16,7 @@
 // Para preparar la hoja con esta escala, ejecuta UNA vez la función setupSheet desde el editor.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'borrar-2';
+const VERSION = 'editar-1';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Proyecto', 'Área', 'Tamaño'];
 const AREAS = ['Producto', 'Diseño'];
@@ -193,13 +193,37 @@ function createTask_(t) {
   }
 }
 
-// Cambia el estado de una fila existente. `id` es el nº de fila de la hoja; `iniciativa` es el texto que la página
-// tenía para esa fila y sirve de comprobación: si alguien ha insertado, borrado u ordenado filas desde que se cargó
-// la tabla, la fila ya no coincide y se rechaza el cambio en lugar de escribir en la fila equivocada.
+// Edita una fila existente. `changes` puede llevar cualquiera de: iniciativa (el título), proyecto, area, estado, tamano, nota.
+// Solo se escriben los campos presentes y se validan igual que al crear. `id` es el nº de fila de la hoja; `iniciativa` es el
+// texto que la página tenía para esa fila y sirve de comprobación: si alguien ha insertado, borrado u ordenado filas desde
+// que se cargó la tabla, la fila ya no coincide y se rechaza el cambio en lugar de escribir en la fila equivocada.
 function updateTask_(id, iniciativa, changes) {
-  if (!Object.prototype.hasOwnProperty.call(changes, 'estado')) throw fail_(400, 'No hay nada que actualizar');
-  const estado = str_(changes.estado, 50);
-  if (estado && ESTADOS.indexOf(estado) < 0) throw fail_(400, 'Estado no válido');
+  const has = (k) => Object.prototype.hasOwnProperty.call(changes, k);
+  const clean = {}; // campos validados, con el nombre de la columna de destino
+  if (has('iniciativa')) {
+    clean.title = str_(changes.iniciativa, 200);
+    if (!clean.title) throw fail_(400, 'La tarea necesita un nombre');
+  }
+  if (has('proyecto')) {
+    clean['Proyecto'] = str_(changes.proyecto, 100);
+    if (!clean['Proyecto']) throw fail_(400, 'Falta el proyecto');
+  }
+  if (has('area')) {
+    if (AREAS.indexOf(changes.area) < 0) throw fail_(400, 'Área no válida');
+    clean['Área'] = changes.area;
+  }
+  if (has('estado')) {
+    const estado = str_(changes.estado, 50);
+    if (estado && ESTADOS.indexOf(estado) < 0) throw fail_(400, 'Estado no válido');
+    clean['Estado'] = estado;
+  }
+  if (has('tamano')) {
+    const tamano = normalizeSize_(changes.tamano);
+    if (!tamano) throw fail_(400, 'Tamaño no válido');
+    clean['Tamaño'] = tamano;
+  }
+  if (has('nota')) clean['Nota'] = str_(changes.nota, 1900);
+  if (!Object.keys(clean).length) throw fail_(400, 'No hay nada que actualizar');
   const row = Number(id);
   if (!Number.isInteger(row) || row < 2) throw fail_(400, 'Fila no válida');
 
@@ -209,13 +233,23 @@ function updateTask_(id, iniciativa, changes) {
     const sheet = sheet_();
     const head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
     const idx = columns_(head);
-    if (idx['Estado'] === undefined) throw fail_(500, 'Falta la columna «Estado» en la hoja');
     const changed = 'La hoja ha cambiado desde que se cargó la tabla. Recarga la página.';
     if (row > sheet.getLastRow()) throw fail_(409, changed);
     const current = String(sheet.getRange(row, idx.title + 1).getValue()).trim();
     if (current !== String(iniciativa == null ? '' : iniciativa).trim()) throw fail_(409, changed);
-    sheet.getRange(row, idx['Estado'] + 1).setValue(safe_(estado));
-    return { id: String(row), estado };
+    for (const key of Object.keys(clean)) {
+      const col = key === 'title' ? idx.title : idx[key];
+      if (col === undefined) throw fail_(500, 'Falta la columna «' + key + '» en la hoja');
+    }
+    for (const key of Object.keys(clean)) {
+      const col = key === 'title' ? idx.title : idx[key];
+      sheet.getRange(row, col + 1).setValue(safe_(clean[key]));
+    }
+    return {
+      id: String(row),
+      iniciativa: clean.title, proyecto: clean['Proyecto'], area: clean['Área'],
+      estado: clean['Estado'], tamano: clean['Tamaño'], nota: clean['Nota'],
+    };
   } finally {
     lock.releaseLock();
   }

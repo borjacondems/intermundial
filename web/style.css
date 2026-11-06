@@ -201,7 +201,7 @@ button {
 }
 /* Botón del Design System (Figma · Button, tamaño Medium): padding size-4, separación size-2, texto 16/22 con -0.5 de interletraje.
    Primary = fondo semantic-primary; Secondary (.ghost) = sin fondo, borde semantic-primary y texto content-high. Disabled a .25. */
-button:not(.tab):not(.chip):not(.linkbtn):not(.page):not(.row-del) {
+button:not(.tab):not(.chip):not(.linkbtn):not(.page):not(.row-del):not(.row-edit) {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--size-2); padding: 0 var(--size-4);
   font: 400 var(--font-size-16)/var(--line-height-22) var(--font-text); letter-spacing: var(--letter-spacing-05);
 }
@@ -228,10 +228,10 @@ table.tasks { table-layout: fixed; min-width: 760px; }
 table.tasks th:nth-child(1) { width: 14%; }  /* Proyecto */
 table.tasks th:nth-child(2) { width: 12%; }  /* Área */
 table.tasks th:nth-child(3) { width: 13%; }  /* Estado */
-table.tasks th:nth-child(4) { width: 27%; }  /* Tarea */
+table.tasks th:nth-child(4) { width: 24%; }  /* Tarea */
 table.tasks th:nth-child(5) { width: 9%; }   /* Tamaño */
 table.tasks th:nth-child(6) { width: 6%; }   /* Pts */
-table.tasks th:nth-child(7) { width: 19%; }  /* Nota */
+table.tasks th:nth-child(7) { width: 22%; }  /* Nota */
 table.tasks td { overflow-wrap: anywhere; }
 /* Selector de estado editable dentro de la tabla: mismo aspecto que la etiqueta, con flecha */
 select.status {
@@ -454,18 +454,22 @@ body:has(#gate:not([hidden])) main {
 /* ---- Borrar tarea: botón al final de la fila (aparece al pasar el ratón) y ventana de confirmación ---- */
 button.danger { background: var(--semantic-danger); color: var(--content-oncolor-high); }
 table.tasks td:last-child { position: relative; }
-table.tasks.deletable td:last-child { padding-right: 52px; }
-button.row-del {
-  position: absolute; right: var(--size-2); top: 50%; transform: translateY(-50%);
+table.tasks.deletable td:last-child { padding-right: 96px; }
+.row-actions {
+  position: absolute; right: var(--size-2); top: 50%; transform: translateY(-50%); display: flex; gap: var(--size-1);
+  opacity: 0; transition: opacity .2s ease-in;
+}
+table.tasks tr:hover .row-actions, .row-actions:focus-within { opacity: 1; }
+button.row-del, button.row-edit {
   width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface-default); color: var(--content-mid); border: 1px solid var(--stroke-low); border-radius: var(--size-2);
-  opacity: 0; transition: opacity .2s ease-in, color .2s ease-in, border-color .2s ease-in;
+  transition: color .2s ease-in, border-color .2s ease-in;
 }
-table.tasks tr:hover button.row-del, button.row-del:focus-visible { opacity: 1; }
 button.row-del:hover:not(:disabled) { filter: none; color: var(--semantic-danger); border-color: var(--semantic-danger); }
-button.row-del:focus-visible { outline: 2px solid var(--semantic-primary); outline-offset: 2px; }
-@media (hover: none) { button.row-del { opacity: .7; } }  /* sin ratón (táctil) no hay hover: siempre visible */
-@media print { button.row-del { display: none; } }
+button.row-edit:hover:not(:disabled) { filter: none; color: var(--semantic-primary); border-color: var(--semantic-primary); }
+button.row-del:focus-visible, button.row-edit:focus-visible { outline: 2px solid var(--semantic-primary); outline-offset: 2px; }
+@media (hover: none) { .row-actions { opacity: .7; } }  /* sin ratón (táctil) no hay hover: siempre visibles */
+@media print { .row-actions { display: none; } }
 
 dialog#confirm {
   width: min(420px, calc(100vw - 32px)); padding: var(--size-6); border: 1px solid var(--stroke-low); border-radius: var(--size-3);
@@ -479,3 +483,16 @@ dialog#confirm p { margin: 0 0 var(--size-6); color: var(--content-mid); overflo
 dialog#confirm p b { color: var(--content-high); font-weight: 500; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--size-2); }
 @media (prefers-reduced-motion: reduce) { dialog#confirm[open] { animation: none; } }
+
+/* Ventana de edición de una tarea (mismo formulario que «Nueva tarea») */
+dialog#edit {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: var(--size-6);
+  border: 1px solid var(--stroke-low); border-radius: var(--size-3); background: var(--surface-default); color: var(--content-high);
+}
+dialog#edit::backdrop { background: color-mix(in srgb, var(--surface-header) 55%, transparent); }
+dialog#edit[open] { animation: fade-in .2s ease-in; }
+dialog#edit h2 { margin: 0 0 var(--size-4); }
+dialog#edit .dialog-actions { grid-column: 1 / -1; }
+dialog#edit .msg { grid-column: 1 / -1; margin: 0; }
+@media (prefers-reduced-motion: reduce) { dialog#edit[open] { animation: none; } }
+@media (max-width: 600px) { dialog#edit form.task { grid-template-columns: 1fr; } }

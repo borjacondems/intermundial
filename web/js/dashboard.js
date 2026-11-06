@@ -192,20 +192,24 @@ function showError(msg) {
 
 // Fila de la tabla de tareas (la usan el dashboard y la pestaña «Tareas» del formulario).
 // Con { statusOptions } el estado es un selector editable (pestaña «Tareas» del equipo); sin él, una etiqueta.
-function taskRow(t, { statusOptions = null, disabled = false, deletable = false } = {}) {
+function taskRow(t, { statusOptions = null, disabled = false, deletable = false, editable = false } = {}) {
   const dot = AREAS.includes(t.area) ? areaColor(t.area) : css('--content-low');
   const estado = statusOptions
     ? `<select class="status ${t.estado ? slug(t.estado) : 'sin-estado'}" data-id="${esc(t.id)}" aria-label="Estado de «${esc(t.iniciativa)}»"${disabled ? ' disabled' : ''}>` +
       ['', ...statusOptions].map((o) => `<option value="${esc(o)}"${o === t.estado ? ' selected' : ''}>${o ? esc(o) : 'Sin estado'}</option>`).join('') +
       '</select>'
     : t.estado ? `<span class="tag ${slug(t.estado)}">${esc(t.estado)}</span>` : '–';
-  // Botón de borrar (solo en la tabla del equipo): aparece al pasar el ratón por la fila, al final de la última celda.
-  const del = deletable
-    ? `<button type="button" class="row-del" data-id="${esc(t.id)}" aria-label="Borrar «${esc(t.iniciativa)}»" title="Borrar tarea"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></svg></button>`
+  // Botones de editar y borrar (solo en la tabla del equipo): aparecen al pasar el ratón por la fila, al final de la última celda.
+  const icon = (d) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+  const actions = editable || deletable
+    ? '<span class="row-actions">' +
+      (editable ? `<button type="button" class="row-edit" data-id="${esc(t.id)}" aria-label="Editar «${esc(t.iniciativa)}»" title="Editar tarea">${icon('M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4')}</button>` : '') +
+      (deletable ? `<button type="button" class="row-del" data-id="${esc(t.id)}" aria-label="Borrar «${esc(t.iniciativa)}»" title="Borrar tarea">${icon('M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3')}</button>` : '') +
+      '</span>'
     : '';
   return `<tr${counted(t) ? '' : ' class="dim"'}><td>${esc(t.proyecto)}</td><td><span class="dot" style="background:${dot}"></span>${esc(t.area)}</td>` +
     `<td>${estado}</td><td>${esc(t.iniciativa)}</td><td>${esc(normSize(t.tamano))}</td>` +
-    `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}${del}</td></tr>`;
+    `<td class="n">${counted(t) ? pts(t) : '–'}</td><td>${esc(t.nota)}${actions}</td></tr>`;
 }
 
 // Texto de estado bajo el título («Actualizando…», «Datos de las 12:34»).

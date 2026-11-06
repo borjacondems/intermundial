@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <link rel="icon" href="favicon.ico?v=2" sizes="any">
   <link rel="icon" type="image/png" href="favicon.png?v=2">
-  <link rel="stylesheet" href="style.css?v=20261002s">
+  <link rel="stylesheet" href="style.css?v=20261106b">
 </head>
 <body>
   <main>
@@ -67,13 +67,31 @@
     </form>
   </dialog>
 
+  <!-- Edición de una tarea (ventana modal con overlay) -->
+  <dialog id="edit" aria-labelledby="edit-title">
+    <h2 id="edit-title">Editar tarea</h2>
+    <form class="task" id="edit-form" method="dialog">
+      <div class="full"><label for="e-tarea">Tarea *</label><input id="e-tarea" required maxlength="200"></div>
+      <div><label for="e-proyecto">Proyecto *</label><select id="e-proyecto" required></select></div>
+      <div><label for="e-area">Área</label><select id="e-area"></select></div>
+      <div><label for="e-estado">Estado</label><select id="e-estado"></select></div>
+      <div><label for="e-tamano">Tamaño *</label><select id="e-tamano" required></select></div>
+      <div class="full"><label for="e-nota">Nota</label><textarea id="e-nota" rows="3" maxlength="1900"></textarea></div>
+      <p class="msg err" id="e-msg" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="ghost" id="e-cancel">Cancelar</button>
+        <button type="submit" id="e-save">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
   <footer style="text-align:center;font-size:2rem;padding:24px 0">🐱</footer>
 
-  <script src="js/config.js?v=20261002s"></script>
-  <script src="js/loading.js?v=20261002s"></script>
-  <script src="js/api.js?v=20261002s"></script>
-  <script src="js/dashboard.js?v=20261002s"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
-  <script src="js/tasktable.js?v=20261002s"></script>
+  <script src="js/config.js?v=20261106b"></script>
+  <script src="js/loading.js?v=20261106b"></script>
+  <script src="js/api.js?v=20261106b"></script>
+  <script src="js/dashboard.js?v=20261106b"></script><!-- solo se usan sus utilidades (AREAS, esc, taskRow…); Chart.js no hace falta aquí -->
+  <script src="js/tasktable.js?v=20261106b"></script>
   <script>
 
     const PROYECTOS = ['Tienda online', 'Safer', 'App/AC'];
@@ -133,19 +151,21 @@
     // ---- Tabla con etiquetas de filtro por proyecto y contador (módulo compartido con el dashboard) ----
     const table = TaskTable.init($('panel-table'), {
       projects: PROYECTOS,
-      rowOptions: { statusOptions: ESTADOS, disabled: directMode, deletable: !directMode }, // estado editable y botón de borrar
+      rowOptions: { statusOptions: ESTADOS, disabled: directMode, deletable: !directMode, editable: !directMode }, // estado editable, botón de editar y de borrar
       onChange: ({ total }) => { $('count').textContent = total ? `(${total})` : ''; },
     });
 
     // ---- Cambio de estado desde la tabla: se guarda en la hoja (Apps Script) ----
     // Tras guardar, la lectura directa de la hoja puede tardar unos segundos en reflejar el cambio; mientras tanto se
     // mantiene el valor recién guardado para que la tabla no "retroceda".
-    const pendientes = new Map(); // id -> { iniciativa, estado, hasta }
+    const pendientes = new Map(); // id -> { iniciativa (título antes del cambio), changes, hasta }
     function aplicarPendientes(tasks) {
       for (const [id, p] of pendientes) {
-        const t = tasks.find((x) => x.id === id && x.iniciativa === p.iniciativa);
-        if (!t || Date.now() > p.hasta || t.estado === p.estado) pendientes.delete(id);
-        else t.estado = p.estado;
+        // La fila puede seguir con el título antiguo o ya con el nuevo, según lo que la lectura directa haya alcanzado.
+        const t = tasks.find((x) => x.id === id && (x.iniciativa === p.iniciativa || x.iniciativa === p.changes.iniciativa));
+        const alDia = t && Object.entries(p.changes).every(([k, v]) => (t[k] || '') === v);
+        if (!t || Date.now() > p.hasta || alDia) pendientes.delete(id);
+        else Object.assign(t, p.changes);
       }
       return tasks;
     }
@@ -162,7 +182,7 @@
       try {
         await updateTask(task.id, task.iniciativa, { estado: nuevo });
         task.estado = nuevo;
-        pendientes.set(task.id, { iniciativa: task.iniciativa, estado: nuevo, hasta: Date.now() + 60000 });
+        pendientes.set(task.id, { iniciativa: task.iniciativa, changes: { estado: nuevo }, hasta: Date.now() + 60000 });
         dataCache.set('tasks', table.tasks());
       } catch (err) {
         sel.value = anterior; // el cambio no se guardó: el selector vuelve a como estaba
@@ -211,6 +231,76 @@
           $('table-msg').textContent = err.message; $('table-msg').hidden = false;
         }
       } finally { Loading.hide(); }
+    });
+
+    // ---- Editar una tarea: botón de lápiz al final de la fila → ventana con el formulario ----
+    const dlgEdit = $('edit');
+    const SCALE_OPTS = '<option value="">Selecciona un tamaño</option>' +
+      SIZES.map((k) => `<option value="${k}">${k} · ${PTS[k]} ${PTS[k] === 1 ? 'punto' : 'puntos'}</option>`).join('');
+    $('e-proyecto').innerHTML = PROYECTOS.map((v) => `<option>${v}</option>`).join('');
+    $('e-area').innerHTML = AREAS.map((v) => `<option>${v}</option>`).join('');
+    $('e-estado').innerHTML = '<option value="">Sin estado</option>' + ESTADOS.map((v) => `<option>${v}</option>`).join('');
+    let editing = null; // tarea que se está editando
+
+    function openEdit(task) {
+      editing = task;
+      $('e-msg').hidden = true;
+      // Si la tarea tiene un proyecto o un tamaño fuera de las listas (p. ej. TBD o Incluido, o un proyecto nuevo en la hoja),
+      // se añade esa opción para no perderlo al guardar.
+      $('e-proyecto').innerHTML = (PROYECTOS.includes(task.proyecto) || !task.proyecto ? PROYECTOS : [...PROYECTOS, task.proyecto]).map((v) => `<option>${esc(v)}</option>`).join('');
+      $('e-tamano').innerHTML = SCALE_OPTS + (SIZES.includes(task.tamano) || !task.tamano ? '' : `<option value="${esc(task.tamano)}">${esc(task.tamano)} · sin puntos</option>`);
+      $('e-tarea').value = task.iniciativa;
+      $('e-proyecto').value = task.proyecto;
+      $('e-area').value = task.area;
+      $('e-estado').value = task.estado || '';
+      $('e-tamano').value = task.tamano;
+      $('e-nota').value = task.nota || '';
+      dlgEdit.showModal();
+      $('e-tarea').focus();
+    }
+    $('e-cancel').onclick = () => dlgEdit.close();
+    dlgEdit.addEventListener('click', (e) => { if (e.target === dlgEdit) dlgEdit.close(); }); // clic en el overlay = cancelar
+
+    $('edit-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const task = editing;
+      if (!task) return;
+      // Solo se envían los campos que han cambiado.
+      const nuevo = {
+        iniciativa: $('e-tarea').value.trim(), proyecto: $('e-proyecto').value, area: $('e-area').value,
+        estado: $('e-estado').value, tamano: $('e-tamano').value, nota: $('e-nota').value,
+      };
+      const changes = {};
+      for (const [k, v] of Object.entries(nuevo)) if (v !== (task[k] || '')) changes[k] = v;
+      if (!Object.keys(changes).length) { dlgEdit.close(); return; }
+      // La ventana modal queda por encima del overlay de carga, así que el aviso de progreso va en el propio botón.
+      $('e-save').disabled = $('e-cancel').disabled = true;
+      $('e-save').textContent = 'Guardando…';
+      $('e-msg').hidden = true;
+      try {
+        await updateTask(task.id, task.iniciativa, changes);
+        const antes = task.iniciativa;
+        Object.assign(task, changes);
+        pendientes.set(task.id, { iniciativa: antes, changes, hasta: Date.now() + 60000 });
+        dataCache.set('tasks', table.tasks());
+        dlgEdit.close();
+        $('table-msg').hidden = true;
+        table.paint();
+      } catch (err) {
+        if (err.status === 401) { dlgEdit.close(); teamKey.set(''); dataCache.clear('tasks'); show(false); keyError(BAD_KEY); }
+        else {
+          // 409: la hoja cambió; se recarga la tabla y se cierra la ventana. El aviso se muestra después, porque al recargar se borra.
+          if (err.status === 409) { dlgEdit.close(); await load({ blocking: false }); $('table-msg').textContent = err.message; $('table-msg').hidden = false; }
+          else { $('e-msg').textContent = err.message; $('e-msg').hidden = false; }
+        }
+      } finally { $('e-save').disabled = $('e-cancel').disabled = false; $('e-save').textContent = 'Guardar'; }
+    };
+
+    $('rows').addEventListener('click', (e) => {
+      const btn = e.target.closest('.row-edit');
+      if (!btn) return;
+      const task = table.tasks().find((t) => t.id === btn.dataset.id);
+      if (task) openEdit(task);
     });
 
     function renderTable(tasks) {
