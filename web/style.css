@@ -225,15 +225,17 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 /* Tabla de tareas: reparto de columnas fijo (en px), para que no se muevan al filtrar (con table-layout automático el ancho
    depende de las filas visibles). Si no caben en pantalla, .table-wrap ofrece desplazamiento horizontal, para leer las notas
    completas sin comprimir el resto. La columna de acciones (editar / borrar) queda fija a la derecha. */
-table.tasks { table-layout: fixed; min-width: 1144px; }
+table.tasks { table-layout: fixed; min-width: 1176px; }
 table.tasks th:nth-child(1) { width: 112px; }  /* Proyecto */
-table.tasks th:nth-child(2) { width: 104px; }  /* Área */
+table.tasks th:nth-child(2) { width: 136px; }  /* Área */
 table.tasks th:nth-child(3) { width: 132px; }  /* Estado */
 table.tasks th:nth-child(4) { width: 232px; }  /* Tarea */
 table.tasks th:nth-child(5) { width: 72px; }   /* Tamaño */
 table.tasks th:nth-child(6) { width: 52px; }   /* Pts */
 table.tasks th:nth-child(7) { width: 440px; }  /* Nota */
-table.tasks th.act { width: 96px; }            /* Acciones (solo en la tabla del equipo) */
+table.tasks th.act { width: 96px; }
+/* Proyecto y Área en una sola línea (el punto de color no se separa de su texto, p. ej. «● Metodología») */
+table.tasks td:nth-child(1), table.tasks td:nth-child(2) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }            /* Acciones (solo en la tabla del equipo) */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Barra de desplazamiento siempre visible y fina, para que se note que la tabla se puede mover */
 .table-wrap { scrollbar-width: thin; scrollbar-color: var(--content-low) transparent; padding-bottom: var(--size-1); }
