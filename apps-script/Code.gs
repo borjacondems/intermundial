@@ -16,10 +16,10 @@
 // Para preparar la hoja con esta escala, ejecuta UNA vez la función setupSheet desde el editor.
 
 // Sube este número al cambiar el código: el GET a la URL /exec lo devuelve y permite comprobar qué versión está desplegada.
-const VERSION = 'editar-1';
+const VERSION = 'metodologia-1';
 const DEFAULT_SHEET_NAME = 'roadmap';
 const REQUIRED = ['Proyecto', 'Área', 'Tamaño'];
-const AREAS = ['Producto', 'Diseño'];
+const AREAS = ['Producto', 'Diseño', 'Metodología']; // tipos de tarea (columna «Área»); debe coincidir con AREAS en web/js/dashboard.js
 const ESTADOS = ['En curso', 'Hecho', 'Bloqueado'];
 // Escala de tamaños → puntos de esfuerzo. Debe coincidir con PTS en web/js/dashboard.js.
 const SCALE = { XS: 1, S: 2, M: 8, L: 16, XL: 32 };

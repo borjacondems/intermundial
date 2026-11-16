@@ -21,10 +21,14 @@ function normSize(v) {
 const prepare = (tasks) => tasks.map((t) => ({ ...t, tamano: normSize(t.tamano) }));
 // Las tareas nuevas primero: el id es el nº de fila de la hoja y las tareas nuevas se añaden al final, así que va de mayor a menor.
 const newestFirst = (tasks) => [...tasks].sort((a, b) => (+b.id || 0) - (+a.id || 0));
-const AREAS = ['Producto', 'Diseño'];
-// Colores de las áreas tomados de los tokens CSS: Producto = semantic-primary, Diseño = content-high.
+// Tipos de tarea (columna «Área»). Debe coincidir con AREAS en apps-script/Code.gs.
+const AREAS = ['Producto', 'Diseño', 'Metodología'];
+// Colores de las áreas tomados de los tokens CSS: Producto = semantic-primary, Diseño = content-high, Metodología = content-low.
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const areaColor = (a) => css(a === 'Producto' ? '--semantic-primary' : '--content-high');
+const AREA_TOKEN = { Producto: '--semantic-primary', Diseño: '--content-high', Metodología: '--content-low' };
+const areaColor = (a) => css(AREA_TOKEN[a] || '--content-low');
+// En los gráficos de reparto (anillos y barras del informe) Diseño va en surface-blue2 (#E0F0FF).
+const chartColor = (a) => (a === 'Diseño' ? css('--surface-blue2') : areaColor(a));
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pts = (t) => PTS[normSize(t.tamano)] || 0;
@@ -86,7 +90,7 @@ const charts = {};
 // Gráfico de anillo por tipo de tarea (área: Producto / Diseño), con el total en el centro y la leyenda debajo.
 // unit: «tarea(s)» o «punto(s)».
 function donut(id, values, unit) {
-  const color = (a) => (a === 'Diseño' ? css('--surface-blue2') : areaColor(a)); // Diseño = #E0F0FF (token surface-blue2)
+  const color = chartColor;
   const total = values.reduce((a, b) => a + b, 0);
   const text = (n) => `${n} ${n === 1 ? unit[0] : unit[1]}`;
   charts[id]?.destroy();
@@ -132,7 +136,7 @@ function donut(id, values, unit) {
 // Barra proporcional Producto / Diseño con los mismos colores que los anillos.
 function shareBar(values) {
   const total = values.reduce((a, b) => a + b, 0) || 1;
-  return `<div class="rpt-bar">${AREAS.map((a, i) => `<span style="width:${(values[i] / total) * 100}%;background:${a === 'Diseño' ? css('--surface-blue2') : areaColor(a)}"></span>`).join('')}</div>`;
+  return `<div class="rpt-bar">${AREAS.map((a, i) => `<span style="width:${(values[i] / total) * 100}%;background:${chartColor(a)}"></span>`).join('')}</div>`;
 }
 
 function reportSection(name, tasks, subtitle) {
@@ -146,7 +150,7 @@ function reportSection(name, tasks, subtitle) {
   return `<section class="rpt-page">
     <p class="rpt-sub">Dashboard Tareas${subtitle ? ' · ' + esc(subtitle) : ''}</p>
     <h2 class="rpt-title">${esc(name)}</h2>
-    <div class="rpt-kpis">${kpi(s.n, 'Tareas')}${kpi(s.pts, 'Puntos de esfuerzo')}${kpi(pct(s.area.Producto.pts, s.pts) + '%', 'Producto')}${kpi(pct(s.area.Diseño.pts, s.pts) + '%', 'Diseño')}</div>
+    <div class="rpt-kpis">${kpi(s.n, 'Tareas')}${kpi(s.pts, 'Puntos de esfuerzo')}${AREAS.map((a) => kpi(pct(s.area[a].pts, s.pts) + '%', a)).join('')}</div>
     <h3>Tareas por tipo</h3>${shareBar(AREAS.map((a) => s.area[a].n))}
     <h3>Esfuerzo por tipo</h3>${shareBar(AREAS.map((a) => s.area[a].pts))}
     <table class="rpt-areas"><thead><tr><th>Tipo</th><th class="n">Tareas</th><th class="n">Puntos</th><th class="n">% esfuerzo</th></tr></thead><tbody>${areaRows}</tbody></table>
@@ -173,6 +177,7 @@ const TEMPLATE = (internal) => `
     <div class="card kpi"><div class="v" id="k-pts">–</div><div class="l">Puntos de esfuerzo</div></div>
     <div class="card kpi"><div class="v" id="k-prod">–</div><div class="l" id="l-prod">Producto</div></div>
     <div class="card kpi"><div class="v" id="k-dis">–</div><div class="l" id="l-dis">Diseño</div></div>
+    <div class="card kpi"><div class="v" id="k-met">–</div><div class="l" id="l-met">Metodología</div></div>
   </div>
   <div class="grid charts">
     <div class="card"><h2>Tareas</h2><div class="donut"><div class="chart-box"><canvas id="c-pie-n"></canvas><div class="donut-center" id="c-pie-n-c"></div></div><div class="legend" id="c-pie-n-l"></div></div></div>
@@ -357,7 +362,7 @@ function mount(root, initial, { internal = false, onReload = null } = {}) {
 
     $('k-n').textContent = s.n;
     $('k-pts').textContent = s.pts;
-    for (const [id, lid, a] of [['k-prod', 'l-prod', 'Producto'], ['k-dis', 'l-dis', 'Diseño']]) {
+    for (const [id, lid, a] of [['k-prod', 'l-prod', 'Producto'], ['k-dis', 'l-dis', 'Diseño'], ['k-met', 'l-met', 'Metodología']]) {
       $(id).textContent = pct(s.area[a].pts, s.pts) + '%';
       $(lid).textContent = `${a} · ${s.area[a].pts} pts · ${nTareas(s.area[a].n)}`;
     }

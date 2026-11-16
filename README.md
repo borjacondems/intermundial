@@ -16,7 +16,7 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
 |---|---|---|
 | Tarea | sí | texto. La columna también puede llamarse «Iniciativa» (nombre anterior); se acepta cualquiera de los dos |
 | Proyecto | sí | texto libre en la hoja. El formulario ofrece una lista fija (`PROYECTOS` en `web/index.html`: Tienda online, Safer, App/AC); para añadir un proyecto, añádelo a esa lista |
-| Área | sí | `Producto` o `Diseño` |
+| Área | sí | `Producto`, `Diseño` o `Metodología` (el tipo de tarea). Si la columna de tu hoja tiene un desplegable o un tipo de columna, añade ahí la opción `Metodología` |
 | Tamaño | sí | `XS`, `S`, `M`, `L`, `XL` (puntos de esfuerzo: 1, 2, 8, 16, 32), `TBD` o `Incluido` (sin puntos). Los nombres antiguos `small` / `medium` / `large` se leen como S / M / L |
 | Puntos | no | La crea `setupSheet` (fórmula con los puntos de cada tamaño). La web no la lee: calcula los puntos con su propia escala |
 | Estado | no | `En curso`, `Hecho`, `Bloqueado`. Si toda la columna está vacía, el dashboard oculta el filtro y el gráfico de estado |
@@ -62,7 +62,7 @@ https://TU_USUARIO.github.io/intermundial/dashboard.html#c=Intermundial&k=clave-
 Tras abrirlo una vez con el enlace, el navegador recuerda el acceso y `dashboard.html` funciona también sin el `#…`. Si la clave deja de valer, el acceso guardado se borra y hay que usar el enlace nuevo. El fragmento (`#`) no se envía a ningún servidor. Para revocar el acceso, cambia esa clave en `CLIENT_KEYS`. Botón «Imprimir / PDF» para guardar un informe.
 
 ## Modelo de datos
-Tarea · Cliente · Proyecto · Área (Producto/Diseño) · Estado (En curso/Hecho/Bloqueado) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
+Tarea · Cliente · Proyecto · Área (Producto/Diseño/Metodología) · Estado (En curso/Hecho/Bloqueado) · Tamaño (small/medium/large/TBD/Incluido) · Nota.
 Esfuerzo (puntos): XS = 1 · S = 2 · M = 8 · L = 16 · XL = 32. `TBD` e `Incluido` («Todo lo pasado de Producto») no puntúan. La escala está en dos sitios que deben coincidir: `PTS` en `web/js/dashboard.js` y `SCALE` en `apps-script/Code.gs`.
 Con los datos actuales de la hoja y la escala nueva (los `small / medium / large` actuales se leen como S / M / L): 36 tareas y 248 pts (Producto 144, Diseño 104).
 

@@ -422,7 +422,7 @@ button.page:focus-visible { outline: 2px solid var(--semantic-primary); outline-
 .rpt-page h3 { margin: var(--size-6) 0 var(--size-2); font: 500 var(--font-size-14)/var(--line-height-20) var(--font-text); letter-spacing: var(--letter-spacing-04); }
 .rpt-sub { margin: 0; color: var(--content-mid); }
 .rpt-title { margin: 0 0 var(--size-4); color: var(--semantic-primary); font: 200 var(--font-size-36)/var(--line-height-40) var(--font-display); letter-spacing: var(--letter-spacing-06); }
-.rpt-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--size-4); }
+.rpt-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--size-4); }
 .rpt-kpi { border: 1px solid var(--stroke-low); border-radius: var(--size-2); padding: var(--size-3) var(--size-4); }
 .rpt-kpi b { display: block; font: 400 var(--font-size-24)/var(--line-height-30) var(--font-text); letter-spacing: var(--letter-spacing-12); }
 .rpt-kpi span { color: var(--content-mid); }
