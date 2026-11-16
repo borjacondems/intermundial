@@ -15,7 +15,7 @@ Las columnas se leen por el nombre de la cabecera, en cualquier orden:
 | Columna | Obligatoria | Valores |
 |---|---|---|
 | Tarea | sí | texto. La columna también puede llamarse «Iniciativa» (nombre anterior); se acepta cualquiera de los dos |
-| Proyecto | sí | texto libre en la hoja. El formulario ofrece una lista fija (`PROYECTOS` en `web/index.html`: Tienda online, Safer, App/AC); para añadir un proyecto, añádelo a esa lista |
+| Proyecto | sí | texto libre en la hoja. El formulario ofrece una lista fija (`PROYECTOS` en `web/index.html`: Tienda online, Safer, App/AC, Global); para añadir un proyecto, añádelo a esa lista |
 | Área | sí | `Producto`, `Diseño` o `Metodología` (el tipo de tarea). Si la columna de tu hoja tiene un desplegable o un tipo de columna, añade ahí la opción `Metodología` |
 | Tamaño | sí | `XS`, `S`, `M`, `L`, `XL` (puntos de esfuerzo: 1, 2, 8, 16, 32), `TBD` o `Incluido` (sin puntos). Los nombres antiguos `small` / `medium` / `large` se leen como S / M / L |
 | Puntos | no | La crea `setupSheet` (fórmula con los puntos de cada tamaño). La web no la lee: calcula los puntos con su propia escala |

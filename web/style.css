@@ -508,3 +508,6 @@ dialog#edit .msg { grid-column: 1 / -1; margin: 0; }
 /* Gestor de tareas: el selector de periodo va encima de las pestañas */
 #app > .filters { margin: var(--size-12) 0 0; }
 #app > .filters:not([hidden]) + .tabs { margin-top: var(--size-6); }
+
+/* Etiqueta de las tarjetas de tipo (KPI): dos líneas fijas */
+.kpi .l .kl { display: block; white-space: nowrap; }

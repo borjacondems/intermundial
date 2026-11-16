@@ -364,7 +364,8 @@ function mount(root, initial, { internal = false, onReload = null } = {}) {
     $('k-pts').textContent = s.pts;
     for (const [id, lid, a] of [['k-prod', 'l-prod', 'Producto'], ['k-dis', 'l-dis', 'Diseño'], ['k-met', 'l-met', 'Metodología']]) {
       $(id).textContent = pct(s.area[a].pts, s.pts) + '%';
-      $(lid).textContent = `${a} · ${s.area[a].pts} pts · ${nTareas(s.area[a].n)}`;
+      // Dos líneas fijas (tipo / puntos y tareas), para que el texto no se parta donde caiga.
+      $(lid).innerHTML = `<span class="kl">${a}</span><span class="kl">${s.area[a].pts} pts · ${nTareas(s.area[a].n)}</span>`;
     }
 
     donut('c-pie-n', AREAS.map((a) => s.area[a].n), ['tarea', 'tareas']);
